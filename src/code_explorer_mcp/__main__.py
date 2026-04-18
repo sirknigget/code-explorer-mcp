@@ -1,10 +1,6 @@
 from __future__ import annotations
 
-from code_explorer_mcp.server import mcp
-
-
-def main() -> None:
-    mcp.run()
+from code_explorer_mcp.main import main
 
 
 if __name__ == "__main__":
