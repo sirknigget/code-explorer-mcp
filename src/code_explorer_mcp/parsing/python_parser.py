@@ -264,15 +264,24 @@ class PythonParser(Parser):
         )
 
     def _slice_source(self, source: str, span: SourceSpan) -> str:
-        line_offsets = self._line_offsets(source)
-        start_offset = line_offsets[span.start.line - 1] + span.start.column
-        end_offset = line_offsets[span.end.line - 1] + span.end.column
+        lines = source.splitlines(keepends=True)
+        start_offset = self._offset_for_position(lines, span.start)
+        end_offset = self._offset_for_position(lines, span.end)
         return source[start_offset:end_offset]
 
-    def _line_offsets(self, source: str) -> list[int]:
-        offsets = [0]
-        running_total = 0
-        for line in source.splitlines(keepends=True):
-            running_total += len(line)
-            offsets.append(running_total)
-        return offsets
+    def _offset_for_position(
+        self,
+        lines: list[str],
+        position: SourcePosition,
+    ) -> int:
+        line_text = lines[position.line - 1]
+        column = self._character_column_for_utf8_offset(line_text, position.column)
+        return sum(len(line) for line in lines[: position.line - 1]) + column
+
+    def _character_column_for_utf8_offset(self, line_text: str, utf8_offset: int) -> int:
+        if utf8_offset < 0:
+            raise ValueError(f"Invalid column: {utf8_offset}")
+        encoded = line_text.encode("utf-8")
+        if utf8_offset > len(encoded):
+            raise ValueError(f"Invalid column: {utf8_offset}")
+        return len(encoded[:utf8_offset].decode("utf-8"))

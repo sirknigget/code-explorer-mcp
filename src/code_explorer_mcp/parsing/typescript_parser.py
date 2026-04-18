@@ -143,8 +143,21 @@ class TypeScriptParser(Parser):
 
         offset = sum(len(line) for line in lines[: position.line - 1])
         line_text = lines[position.line - 1]
-        if position.column < 0 or position.column > len(line_text):
-            raise ValueError(
-                f"Invalid column {position.column} for line {position.line}",
-            )
-        return offset + position.column
+        column = self._character_column_for_utf16_offset(line_text, position.column)
+        return offset + column
+
+    def _character_column_for_utf16_offset(self, line_text: str, utf16_offset: int) -> int:
+        if utf16_offset < 0:
+            raise ValueError(f"Invalid column: {utf16_offset}")
+
+        consumed_units = 0
+        for index, character in enumerate(line_text):
+            if consumed_units == utf16_offset:
+                return index
+            consumed_units += len(character.encode("utf-16-le")) // 2
+            if consumed_units > utf16_offset:
+                raise ValueError(f"Invalid column: {utf16_offset}")
+
+        if consumed_units == utf16_offset:
+            return len(line_text)
+        raise ValueError(f"Invalid column: {utf16_offset}")

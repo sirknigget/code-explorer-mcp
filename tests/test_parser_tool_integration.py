@@ -3,7 +3,11 @@ from __future__ import annotations
 from dataclasses import asdict
 from pathlib import Path
 
-from code_explorer_mcp.models import FetchSymbolRequest, ParseFileRequest, ToolPlaceholderError
+from code_explorer_mcp.models import (
+    FetchSymbolRequest,
+    ParseFileRequest,
+    ToolPlaceholderError,
+)
 from code_explorer_mcp.runtime_context import configure_runtime_root
 from code_explorer_mcp.tool_file_parse import parse_file
 from code_explorer_mcp.tool_symbol_fetch import fetch_symbol
@@ -25,7 +29,9 @@ def test_parse_file_routes_python_and_typescript_by_extension() -> None:
             content={"interfaces": True, "functions": True, "imports": False},
         )
     )
-    typescript_full_response = parse_file(ParseFileRequest(filename=str(TYPESCRIPT_FIXTURE)))
+    typescript_full_response = parse_file(
+        ParseFileRequest(filename=str(TYPESCRIPT_FIXTURE))
+    )
 
     assert asdict(python_response) == {
         "filename": PYTHON_FILENAME,
@@ -103,8 +109,18 @@ def test_parse_file_routes_python_and_typescript_by_extension() -> None:
         ),
         "sections": {
             "imports": [
-                {"module": "./types", "default": "Thing", "namespace": None, "named": ["Helper"]},
-                {"module": "./utils", "default": None, "namespace": "Utils", "named": []},
+                {
+                    "module": "./types",
+                    "default": "Thing",
+                    "namespace": None,
+                    "named": ["Helper"],
+                },
+                {
+                    "module": "./utils",
+                    "default": None,
+                    "namespace": "Utils",
+                    "named": [],
+                },
             ],
             "globals": [
                 {"name": "TOP_LEVEL_CONST", "declaration_kind": "const"},
@@ -163,7 +179,9 @@ def test_parse_file_reports_invalid_request_for_unknown_symbol_type() -> None:
 
 def test_fetch_symbol_routes_python_and_typescript_by_extension() -> None:
     python_response = fetch_symbol(
-        FetchSymbolRequest(filename=str(PYTHON_FIXTURE), symbol="MyClass.my_async_method"),
+        FetchSymbolRequest(
+            filename=str(PYTHON_FIXTURE), symbol="MyClass.my_async_method"
+        ),
     )
     typescript_response = fetch_symbol(
         FetchSymbolRequest(filename=str(TYPESCRIPT_FIXTURE), symbol="MyEnum"),
@@ -205,7 +223,9 @@ def test_fetch_symbol_returns_symbol_not_found_error() -> None:
     }
 
 
-def test_parse_and_fetch_use_configured_runtime_root(tmp_path: Path, monkeypatch) -> None:
+def test_parse_and_fetch_use_configured_runtime_root(
+    tmp_path: Path, monkeypatch
+) -> None:
     runtime_root = tmp_path / "runtime-root"
     runtime_root.mkdir()
     fixture_path = runtime_root / "sample.py"
@@ -214,7 +234,9 @@ def test_parse_and_fetch_use_configured_runtime_root(tmp_path: Path, monkeypatch
     monkeypatch.chdir(tmp_path)
 
     parse_response = parse_file(ParseFileRequest(filename="sample.py"))
-    fetch_response = fetch_symbol(FetchSymbolRequest(filename="sample.py", symbol="VALUE"))
+    fetch_response = fetch_symbol(
+        FetchSymbolRequest(filename="sample.py", symbol="VALUE")
+    )
 
     assert asdict(parse_response) == {
         "filename": "sample.py",
@@ -234,5 +256,49 @@ def test_parse_and_fetch_use_configured_runtime_root(tmp_path: Path, monkeypatch
         "symbol": "VALUE",
         "symbol_type": "globals",
         "code": "VALUE = 1",
+        "error": None,
+    }
+
+
+def test_fetch_symbol_handles_unicode_prefix_in_python_and_typescript(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    runtime_root = tmp_path / "runtime-root"
+    runtime_root.mkdir()
+    python_path = runtime_root / "unicode_sample.py"
+    typescript_path = runtime_root / "unicode_sample.ts"
+    python_path.write_text(
+        'EMOJI = "😀"; VALUE = 1\n',
+        encoding="utf-8",
+    )
+    typescript_path.write_text(
+        'const emoji = "😀"; export function hello(): string { return "hi"; }\n',
+        encoding="utf-8",
+    )
+    configure_runtime_root(runtime_root)
+    monkeypatch.chdir(tmp_path)
+
+    python_response = fetch_symbol(
+        FetchSymbolRequest(filename="unicode_sample.py", symbol="VALUE"),
+    )
+    typescript_response = fetch_symbol(
+        FetchSymbolRequest(filename="unicode_sample.ts", symbol="hello"),
+    )
+
+    assert asdict(python_response) == {
+        "filename": "unicode_sample.py",
+        "language": "python",
+        "symbol": "VALUE",
+        "symbol_type": "globals",
+        "code": "VALUE = 1",
+        "error": None,
+    }
+    assert asdict(typescript_response) == {
+        "filename": "unicode_sample.ts",
+        "language": "typescript",
+        "symbol": "hello",
+        "symbol_type": "functions",
+        "code": 'export function hello(): string { return "hi"; }',
         "error": None,
     }
