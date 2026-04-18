@@ -1,5 +1,5 @@
 {
-  "name": "ts-parser-poc",
+  "name": "code-explorer-mcp-typescript-runtime",
   "private": true,
   "type": "module",
   "dependencies": {

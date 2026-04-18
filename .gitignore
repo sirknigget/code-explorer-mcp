@@ -208,4 +208,4 @@ __marimo__/
 .idea/
 .claude/
 .worktrees/
-src/ts_parser_poc/node_modules/
+src/code_explorer_mcp/parsing/node_modules/

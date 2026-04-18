@@ -21,14 +21,14 @@ test = [
 [project.scripts]
 code-explorer-mcp = "code_explorer_mcp.__main__:main"
 code-explorer-mcp-server = "code_explorer_mcp.__main__:main"
-ts-parser-poc-setup = "setup_ts_parser_poc:main"
+code-explorer-mcp-node-setup = "setup_node_runtime:main"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
-py-modules = ["main", "setup_ts_parser_poc"]
+py-modules = ["main", "setup_node_runtime"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

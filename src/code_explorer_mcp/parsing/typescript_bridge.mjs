@@ -1,4 +1,4 @@
-import { Project, ScriptKind, SyntaxKind } from "../../ts_parser_poc/node_modules/ts-morph/dist/ts-morph.js";
+import { Project, ScriptKind, SyntaxKind } from "ts-morph";
 
 const SYMBOL_TYPES = [
   "imports",

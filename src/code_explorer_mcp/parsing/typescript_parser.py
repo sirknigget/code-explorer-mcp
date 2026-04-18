@@ -29,7 +29,7 @@ TYPESCRIPT_SYMBOL_TYPES: tuple[str, ...] = (
 
 PARSER_ROOT = Path(__file__).resolve().parent
 BRIDGE_PATH = PARSER_ROOT / "typescript_bridge.mjs"
-NODE_MODULES = PARSER_ROOT.parent.parent / "ts_parser_poc" / "node_modules"
+NODE_MODULES = PARSER_ROOT / "node_modules"
 
 
 class TypeScriptParser(Parser):
@@ -90,12 +90,12 @@ class TypeScriptParser(Parser):
         if not shutil.which("node"):
             raise RuntimeError(
                 "Node.js is required for TypeScript parsing. "
-                "Install Node.js, run `uv run ts-parser-poc-setup`, then rerun the parser."
+                "Install Node.js, run `uv run code-explorer-mcp-node-setup`, then rerun the parser."
             )
         if not NODE_MODULES.exists():
             raise RuntimeError(
                 "TypeScript parser dependencies are not installed. "
-                "Run `uv run ts-parser-poc-setup` after `uv sync`, then rerun the parser."
+                "Run `uv run code-explorer-mcp-node-setup` after `uv sync`, then rerun the parser."
             )
 
     def _load_symbol_spans(

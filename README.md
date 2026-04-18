@@ -1,18 +1,16 @@
 # code-explorer-mcp
 
-This repository currently includes a proof of concept TypeScript parser under `src/ts_parser_poc`.
+A local FastMCP server that provides deterministic code-exploration primitives for Python and TypeScript repositories.
 
 ## Setup
 
 1. Sync Python dependencies:
    - `uv sync`
-2. Install the Node dependencies required by the ts-morph POC:
-   - `uv run ts-parser-poc-setup`
+2. Install the Node dependencies required by the TypeScript parser runtime:
+   - `uv run code-explorer-mcp-node-setup`
 
-The setup command checks that `node` and `npm` are installed before running `npm install` inside `src/ts_parser_poc`.
+The setup command checks that `node` and `npm` are installed before running `npm install` inside `src/code_explorer_mcp/parsing`.
 
-## Run the POC
+## Run the server
 
-- `uv run ts-parser-poc`
-
-The runner assumes the setup step has already been completed. If `node_modules` is missing, it will stop and tell you to run `uv run ts-parser-poc-setup` first.
+- `uv run code-explorer-mcp`
