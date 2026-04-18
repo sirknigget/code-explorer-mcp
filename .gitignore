@@ -207,4 +207,5 @@ marimo/_lsp/
 __marimo__/
 .idea/
 .claude/
+.worktrees/
 src/ts_parser_poc/node_modules/
