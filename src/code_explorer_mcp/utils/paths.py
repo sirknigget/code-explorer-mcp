@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Iterable
 
 COMMON_IGNORED_DIRECTORIES: frozenset[str] = frozenset(
@@ -27,41 +27,57 @@ class ProjectPathError(ValueError):
 
 
 
+def _simple_relative_parts(path: str | Path) -> tuple[str, ...]:
+    raw_path = str(path).replace("\\", "/").strip()
+    if raw_path in {"", "."}:
+        return ()
+
+    pure_path = PurePosixPath(raw_path)
+    if pure_path.is_absolute():
+        raise ProjectPathError(
+            f"Path must be a simple relative path from the project root: {path}",
+        )
+
+    parts: list[str] = []
+    for part in pure_path.parts:
+        if part in {"", "."}:
+            continue
+        if part == "..":
+            raise ProjectPathError(
+                f"Path must be a simple relative path from the project root: {path}",
+            )
+        parts.append(part)
+
+    return tuple(parts)
+
+
+
 def normalize_relative_path(path: str | Path) -> str:
     """Return a normalized project-relative path using '/' separators.
 
     The returned value never starts with './' and never contains '.' or '..'
     path segments. The project root itself is represented as '.'.
     """
-    raw_path = str(path).replace("\\", "/").strip()
-    if raw_path in {"", "."}:
-        return "."
-
-    parts: list[str] = []
-    for part in raw_path.split("/"):
-        if part in {"", "."}:
-            continue
-        if part == "..":
-            raise ProjectPathError(f"Path escapes project root: {path}")
-        parts.append(part)
-
+    parts = _simple_relative_parts(path)
     return "/".join(parts) if parts else "."
 
 
 
 def resolve_project_path(project_root: Path, path: str | Path | None = None) -> Path:
-    """Resolve a user-provided path within project_root.
-
-    Returns the canonical filesystem path and rejects traversal outside the
-    project root.
-    """
+    """Resolve a user-provided simple relative path within project_root."""
     root = project_root.resolve()
-    candidate = root if path is None else (root / str(path)).resolve()
+    if path is None:
+        return root
+
+    relative_path = normalize_relative_path(path)
+    candidate = (root / relative_path).resolve()
 
     try:
         candidate.relative_to(root)
     except ValueError as exc:
-        raise ProjectPathError(f"Path escapes project root: {path}") from exc
+        raise ProjectPathError(
+            f"Path must be a simple relative path from the project root: {path}",
+        ) from exc
 
     return candidate
 
@@ -70,21 +86,25 @@ def resolve_project_path(project_root: Path, path: str | Path | None = None) -> 
 def to_relative_path(project_root: Path, path: str | Path) -> str:
     """Convert a filesystem path to a normalized project-relative path."""
     root = project_root.resolve()
-    resolved = resolve_project_path(root, path)
-    return normalize_relative_path(resolved.relative_to(root))
+    resolved = Path(path).resolve()
+
+    try:
+        relative_path = resolved.relative_to(root)
+    except ValueError as exc:
+        raise ProjectPathError(
+            f"Path must be inside the project root: {path}",
+        ) from exc
+
+    return normalize_relative_path(relative_path)
 
 
 
 def validate_relative_input(project_root: Path, path: str | Path | None) -> str:
-    """Validate a user-facing relative path argument and normalize it.
-
-    The input must remain inside project_root after resolution.
-    """
+    """Validate a user-facing simple relative path argument and normalize it."""
     if path is None:
         return "."
 
-    resolved = resolve_project_path(project_root, path)
-    return normalize_relative_path(resolved.relative_to(project_root.resolve()))
+    return normalize_relative_path(path)
 
 
 
