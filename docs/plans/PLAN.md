@@ -20,6 +20,11 @@ This approach is preferable to forcing artificial cross-language unification. Py
 ## Architecture
 Adopt a small `src/` package with one FastMCP composition root, three tool modules, and a shared parser subsystem.
 
+The production implementation boundary should be explicit:
+- all production server code lives under `src/code_explorer_mcp`
+- `src/legacy` is reference-only and must not be imported by the MVP implementation
+- `src/ts_parser_poc` may inform the TypeScript parser design, but production code should still live under `src/code_explorer_mcp`
+
 The parser subsystem should provide:
 - parser registration
 - parser lookup by filename / extension
@@ -58,6 +63,54 @@ The parser subsystem should provide:
 - `src/code_explorer_mcp/parsing/base.py`: define the shared parser interface and parser registry integration.
 - `src/code_explorer_mcp/parsing/common.py`: define shared span models, symbol match models, parser capability models, and deterministic envelope helpers.
 - `src/code_explorer_mcp/utils/tree.py`: build a deterministic nested tree from sorted relative paths and render a readable structure string without repeated full-path prefixes.
+
+## Existing utility reuse assessment
+The repository contains copied helper modules under `src/legacy`. That folder is explicitly legacy/reference-only material from another project, not part of the MVP production package.
+
+This should be treated as a hard boundary for the implementation:
+- do not import from `src/legacy`
+- do not preserve `src/legacy` module shapes for compatibility
+- do not treat files in `src/legacy` as part of the new architecture
+- only copy small ideas or logic fragments out of `src/legacy` into `src/code_explorer_mcp/...` when they directly fit the MVP contract
+
+The reason for the rename is to make misuse harder: these modules still contain old `code_monkey...` imports and old project assumptions, so direct reuse would blur the boundary between reference code and the actual MCP server implementation.
+
+### Reusable with small adaptation
+- `src/legacy/constants.py`
+  - Keep the idea of a centralized ignored-directory set.
+  - Adapt by moving the relevant defaults into the new package, likely near `src/code_explorer_mcp/utils/paths.py` or `src/code_explorer_mcp/tool_project_structure.py`.
+  - Trim entries to the MVP needs. The existing list already includes most directories called out in this plan: `.venv`, `venv`, `env`, `node_modules`, `.mypy_cache`, `.pytest_cache`, `dist`, `build`, and `__pycache__`.
+  - Do not reuse as-is because the module path is wrong and some entries are inherited from the old project rather than required by this MVP.
+
+- `src/legacy/gitignore.py`
+  - Reuse the overall split between loading root `.gitignore` patterns and matching relative paths.
+  - Adapt it into the new package and keep the API narrow for `get_project_structure`.
+  - Improve it so matching is consistently path-relative and directory-aware for deterministic filtering.
+  - Keep the current simplification that ignores negation patterns only if that remains explicitly documented as an MVP limitation; otherwise extend it before relying on exact-output tests.
+
+- `src/legacy/project_structure.py`
+  - Reuse the core behavior of deterministic sorting, directories-before-files ordering, and recursive tree rendering.
+  - Adapt the rendering to the contract in this plan: output relative paths rooted at `.` and a readable tree-like structure without the current `./ (project root)` header or box-drawing formatting requirements leaking into the contract.
+  - Move the tree-building and rendering logic into the planned `src/code_explorer_mcp/utils/tree.py` module rather than carrying over the old class shape.
+  - Replace direct filesystem walking from arbitrary nodes with project-root-aware traversal and path normalization shared with `utils/paths.py`.
+
+- `src/legacy/file_discovery.py`
+  - Reuse the idea of filtering discovered files through ignored directories and `.gitignore` patterns.
+  - Generalize it beyond Python-only discovery: the MVP needs all files for `get_project_structure`, then parser detection by extension on the matched result set.
+  - Remove the hardcoded `**/*.py` default and old package imports.
+  - This logic should likely be folded into `tool_project_structure.py` plus small reusable helpers, rather than preserved as a standalone Python-only utility.
+
+### Already removed as irrelevant
+- `src/legacy/code_parser.py`
+  - This module should not be carried into the MVP design.
+  - It was tightly coupled to a previous Python-only, LLM-oriented summary format and did not match the MVP contract for deterministic JSON envelopes, exact source spans, or the shared multi-language parser abstraction.
+  - It has already been removed rather than preserved as legacy reference code because it did not provide useful implementation guidance for the planned architecture.
+
+### Practical consequence
+- `src/legacy` exists only as a reference shelf while implementing the new package.
+- All production code for the MCP server must live under `src/code_explorer_mcp`.
+- The new MCP server must not import from `src/legacy`.
+- If a legacy helper is worth keeping, reimplement the needed logic directly in the new package with the MVP contract and tests as the source of truth.
 
 # Parser abstraction
 ## Goals
