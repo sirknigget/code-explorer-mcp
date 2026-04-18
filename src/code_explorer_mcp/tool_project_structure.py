@@ -5,8 +5,8 @@ from fnmatch import fnmatchcase
 from pathlib import Path
 
 from code_explorer_mcp.models import GetProjectStructureRequest, GetProjectStructureResponse
-from code_explorer_mcp.runtime_context import get_runtime_root
 from code_explorer_mcp.parser_registry import DEFAULT_PARSER_REGISTRY
+from code_explorer_mcp.runtime_context import get_runtime_root
 from code_explorer_mcp.utils.paths import (
     COMMON_IGNORED_DIRECTORIES,
     normalize_relative_path,
@@ -17,22 +17,30 @@ from code_explorer_mcp.utils.tree import build_tree, render_tree
 
 
 @dataclass(frozen=True, slots=True)
+class IgnorePattern:
+    pattern: str
+    negated: bool
+    directory_only: bool
+    anchored: bool
+
+
+@dataclass(frozen=True, slots=True)
 class IgnoreRules:
-    patterns: tuple[str, ...]
+    patterns: tuple[IgnorePattern, ...]
 
     def matches_directory(self, relative_path: str) -> bool:
-        normalized = normalize_relative_path(relative_path)
-        return any(
-            _matches_gitignore_pattern(pattern, normalized, is_directory=True)
-            for pattern in self.patterns
-        )
+        return self._is_ignored(normalize_relative_path(relative_path), is_directory=True)
 
     def matches_file(self, relative_path: str) -> bool:
-        normalized = normalize_relative_path(relative_path)
-        return any(
-            _matches_gitignore_pattern(pattern, normalized, is_directory=False)
-            for pattern in self.patterns
-        )
+        return self._is_ignored(normalize_relative_path(relative_path), is_directory=False)
+
+    def _is_ignored(self, relative_path: str, *, is_directory: bool) -> bool:
+        ignored = False
+        for pattern in self.patterns:
+            if not _matches_gitignore_pattern(pattern, relative_path, is_directory=is_directory):
+                continue
+            ignored = not pattern.negated
+        return ignored
 
 
 def get_project_structure(
@@ -75,12 +83,28 @@ def load_ignore_rules(project_root: Path) -> IgnoreRules:
     if not gitignore_path.exists():
         return IgnoreRules(patterns=())
 
-    patterns: list[str] = []
+    patterns: list[IgnorePattern] = []
     for raw_line in gitignore_path.read_text(encoding="utf-8").splitlines():
         stripped = raw_line.strip()
-        if not stripped or stripped.startswith("#") or stripped.startswith("!"):
+        if not stripped or stripped.startswith("#"):
             continue
-        patterns.append(stripped)
+
+        negated = stripped.startswith("!")
+        raw_pattern = stripped[1:] if negated else stripped
+        if not raw_pattern:
+            continue
+
+        directory_only = raw_pattern.endswith("/")
+        anchored = raw_pattern.startswith("/")
+        normalized_pattern = normalize_relative_path(raw_pattern.strip("/"))
+        patterns.append(
+            IgnorePattern(
+                pattern=normalized_pattern,
+                negated=negated,
+                directory_only=directory_only,
+                anchored=anchored,
+            )
+        )
 
     return IgnoreRules(patterns=tuple(patterns))
 
@@ -125,22 +149,26 @@ def discover_project_files(
     return matched_paths
 
 
-def _matches_gitignore_pattern(pattern: str, relative_path: str, *, is_directory: bool) -> bool:
-    normalized_pattern = normalize_relative_path(pattern.lstrip("/"))
+def _matches_gitignore_pattern(
+    pattern: IgnorePattern,
+    relative_path: str,
+    *,
+    is_directory: bool,
+) -> bool:
+    if pattern.directory_only and not is_directory:
+        return False
 
-    if pattern.endswith("/"):
-        directory_pattern = normalize_relative_path(pattern.rstrip("/").lstrip("/"))
-        if not is_directory:
-            return relative_path.startswith(f"{directory_pattern}/")
-        return relative_path == directory_pattern or relative_path.startswith(
-            f"{directory_pattern}/"
-        )
+    candidate_paths = _candidate_paths(pattern, relative_path)
+    return any(fnmatchcase(candidate_path, pattern.pattern) for candidate_path in candidate_paths)
 
-    if "/" in normalized_pattern:
-        return fnmatchcase(relative_path, normalized_pattern)
+
+def _candidate_paths(pattern: IgnorePattern, relative_path: str) -> tuple[str, ...]:
+    if pattern.anchored:
+        return (relative_path,)
+
+    if "/" in pattern.pattern:
+        parts = relative_path.split("/")
+        return tuple("/".join(parts[index:]) for index in range(len(parts)))
 
     basename = relative_path.rsplit("/", maxsplit=1)[-1]
-    path_segments = relative_path.split("/")
-    return fnmatchcase(basename, normalized_pattern) or any(
-        fnmatchcase(segment, normalized_pattern) for segment in path_segments[:-1]
-    )
+    return (basename,)
