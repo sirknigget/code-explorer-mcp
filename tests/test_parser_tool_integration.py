@@ -4,6 +4,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from code_explorer_mcp.models import FetchSymbolRequest, ParseFileRequest, ToolPlaceholderError
+from code_explorer_mcp.runtime_context import configure_runtime_root
 from code_explorer_mcp.tool_file_parse import parse_file
 from code_explorer_mcp.tool_symbol_fetch import fetch_symbol
 
@@ -12,6 +13,8 @@ PYTHON_FIXTURE = FIXTURES / "python_sample.py"
 TYPESCRIPT_FIXTURE = FIXTURES / "typescript_sample.ts"
 PYTHON_FILENAME = "tests/fixtures/python_sample.py"
 TYPESCRIPT_FILENAME = "tests/fixtures/typescript_sample.ts"
+
+configure_runtime_root(Path(__file__).resolve().parents[1])
 
 
 def test_parse_file_routes_python_and_typescript_by_extension() -> None:
@@ -199,4 +202,37 @@ def test_fetch_symbol_returns_symbol_not_found_error() -> None:
             "code": "symbol_not_found",
             "message": "Symbol not found: Missing",
         },
+    }
+
+
+def test_parse_and_fetch_use_configured_runtime_root(tmp_path: Path, monkeypatch) -> None:
+    runtime_root = tmp_path / "runtime-root"
+    runtime_root.mkdir()
+    fixture_path = runtime_root / "sample.py"
+    fixture_path.write_text("VALUE = 1\n", encoding="utf-8")
+    configure_runtime_root(runtime_root)
+    monkeypatch.chdir(tmp_path)
+
+    parse_response = parse_file(ParseFileRequest(filename="sample.py"))
+    fetch_response = fetch_symbol(FetchSymbolRequest(filename="sample.py", symbol="VALUE"))
+
+    assert asdict(parse_response) == {
+        "filename": "sample.py",
+        "language": "python",
+        "available_symbol_types": ("imports", "globals", "classes", "functions"),
+        "sections": {
+            "imports": [],
+            "globals": [{"name": "VALUE"}],
+            "classes": [],
+            "functions": [],
+        },
+        "error": None,
+    }
+    assert asdict(fetch_response) == {
+        "filename": "sample.py",
+        "language": "python",
+        "symbol": "VALUE",
+        "symbol_type": "globals",
+        "code": "VALUE = 1",
+        "error": None,
     }
