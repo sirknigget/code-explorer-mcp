@@ -53,6 +53,37 @@ def test_resolve_project_path_rejects_escape(tmp_path: Path) -> None:
 
 
 
+def test_resolve_project_path_rejects_absolute_input_inside_root(tmp_path: Path) -> None:
+    nested = tmp_path / "src" / "module.py"
+    nested.parent.mkdir(parents=True)
+    nested.write_text("pass\n", encoding="utf-8")
+
+    with pytest.raises(ProjectPathError):
+        resolve_project_path(tmp_path, str(nested))
+
+
+
+def test_validate_relative_input_rejects_absolute_input_inside_root(tmp_path: Path) -> None:
+    nested = tmp_path / "src" / "module.py"
+    nested.parent.mkdir(parents=True)
+    nested.write_text("pass\n", encoding="utf-8")
+
+    with pytest.raises(ProjectPathError):
+        validate_relative_input(tmp_path, str(nested))
+
+
+
+def test_validate_relative_input_rejects_parent_traversal_that_normalizes_inside_root(
+    tmp_path: Path,
+) -> None:
+    src_dir = tmp_path / "src"
+    src_dir.mkdir()
+
+    with pytest.raises(ProjectPathError):
+        validate_relative_input(tmp_path, "src/../src")
+
+
+
 def test_to_relative_path_normalizes_filesystem_path(tmp_path: Path) -> None:
     nested = tmp_path / "src" / "pkg" / "mod.py"
     nested.parent.mkdir(parents=True)
