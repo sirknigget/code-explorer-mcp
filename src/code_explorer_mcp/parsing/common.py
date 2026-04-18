@@ -59,7 +59,7 @@ class SymbolMatch:
     span: SourceSpan | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        payload = {
+        payload: dict[str, Any] = {
             "filename": self.filename,
             "language": self.language,
             "symbol": self.symbol,
@@ -71,11 +71,11 @@ class SymbolMatch:
         return payload
 
 
-
-def make_capabilities(language: str, symbol_types: list[str] | tuple[str, ...]) -> ParserCapabilities:
+def make_capabilities(
+    language: str, symbol_types: list[str] | tuple[str, ...]
+) -> ParserCapabilities:
     """Create a deterministic parser capability description."""
     return ParserCapabilities(language=language, symbol_types=tuple(symbol_types))
-
 
 
 def ordered_unique(values: list[str] | tuple[str, ...]) -> list[str]:
@@ -90,7 +90,6 @@ def ordered_unique(values: list[str] | tuple[str, ...]) -> list[str]:
     return ordered
 
 
-
 def select_symbol_types(
     available_symbol_types: list[str] | tuple[str, ...],
     content: Mapping[str, object] | None,
@@ -102,13 +101,9 @@ def select_symbol_types(
 
     unknown = sorted(set(content).difference(available))
     if unknown:
-        raise ValueError(
-            "Unknown symbol types requested: "
-            + ", ".join(unknown)
-        )
+        raise ValueError("Unknown symbol types requested: " + ", ".join(unknown))
 
     return [symbol_type for symbol_type in available if bool(content.get(symbol_type))]
-
 
 
 def make_parsed_file(

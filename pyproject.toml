@@ -26,6 +26,13 @@ code-explorer-mcp-node-setup = "setup_node_runtime:main"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 
+[tool.ruff.lint.per-file-ignores]
+"tests/fixtures/python_sample.py" = ["F401"]
+
+[tool.pyright]
+include = ["src", "tests"]
+exclude = ["tests/fixtures", ".claude"]
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 py-modules = ["main", "setup_node_runtime"]
@@ -37,3 +44,9 @@ namespaces = true
 
 [tool.uv]
 package = true
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.408",
+    "ruff>=0.15.11",
+]

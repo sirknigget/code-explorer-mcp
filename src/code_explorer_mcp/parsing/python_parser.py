@@ -86,7 +86,9 @@ class PythonParser(Parser):
                 continue
 
             if isinstance(node, ast.ClassDef):
-                class_result = self._parse_class(node, parent_symbol=None, allow_inner=True)
+                class_result = self._parse_class(
+                    node, parent_symbol=None, allow_inner=True
+                )
                 classes.append(class_result.data)
                 symbol_spans.update(class_result.symbol_spans)
 
@@ -104,7 +106,9 @@ class PythonParser(Parser):
             symbol_spans=symbol_spans,
         )
 
-    def fetch_symbol(self, filename: str, source: str, symbol: str) -> SymbolMatch | None:
+    def fetch_symbol(
+        self, filename: str, source: str, symbol: str
+    ) -> SymbolMatch | None:
         parsed = self.parse_file(filename, source)
         span = parsed.symbol_spans.get(symbol)
         if span is None:
@@ -151,7 +155,9 @@ class PythonParser(Parser):
         parent_symbol: str | None,
         allow_inner: bool,
     ) -> _ClassParseResult:
-        symbol_name = node.name if parent_symbol is None else f"{parent_symbol}.{node.name}"
+        symbol_name = (
+            node.name if parent_symbol is None else f"{parent_symbol}.{node.name}"
+        )
         members: list[dict[str, str]] = []
         methods: list[dict[str, str]] = []
         inner_classes: list[dict[str, object]] = []
@@ -232,8 +238,16 @@ class PythonParser(Parser):
         *,
         symbol: str,
         symbol_type: str,
-        node: ast.AST,
+        node: ast.Assign
+        | ast.AnnAssign
+        | ast.FunctionDef
+        | ast.AsyncFunctionDef
+        | ast.ClassDef,
     ) -> SymbolSpan:
+        end_line = node.end_lineno if node.end_lineno is not None else node.lineno
+        end_column = (
+            node.end_col_offset if node.end_col_offset is not None else node.col_offset
+        )
         return SymbolSpan(
             symbol=symbol,
             symbol_type=symbol_type,
@@ -243,8 +257,8 @@ class PythonParser(Parser):
                     column=node.col_offset,
                 ),
                 end=SourcePosition(
-                    line=node.end_lineno,
-                    column=node.end_col_offset,
+                    line=end_line,
+                    column=end_column,
                 ),
             ),
         )
