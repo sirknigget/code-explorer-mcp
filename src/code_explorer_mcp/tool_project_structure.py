@@ -5,8 +5,7 @@ from fnmatch import fnmatchcase
 from pathlib import Path
 
 from code_explorer_mcp.models import GetProjectStructureRequest, GetProjectStructureResponse
-from code_explorer_mcp.parsing.base import Parser, ParserRegistry
-from code_explorer_mcp.parsing.common import ParsedFile, SymbolMatch
+from code_explorer_mcp.parser_registry import DEFAULT_PARSER_REGISTRY
 from code_explorer_mcp.utils.paths import (
     COMMON_IGNORED_DIRECTORIES,
     normalize_relative_path,
@@ -14,47 +13,6 @@ from code_explorer_mcp.utils.paths import (
     validate_relative_input,
 )
 from code_explorer_mcp.utils.tree import build_tree, render_tree
-
-
-PYTHON_SYMBOL_TYPES: tuple[str, ...] = (
-    "imports",
-    "globals",
-    "classes",
-    "functions",
-)
-
-TYPESCRIPT_SYMBOL_TYPES: tuple[str, ...] = (
-    "imports",
-    "globals",
-    "classes",
-    "functions",
-    "interfaces",
-    "type_aliases",
-    "enums",
-    "re_exports",
-)
-
-
-@dataclass(slots=True)
-class CapabilityOnlyParser(Parser):
-    language_name: str
-    extensions: tuple[str, ...]
-    symbol_types: tuple[str, ...]
-
-    def supports(self, filename: str) -> bool:
-        return filename.endswith(self.extensions)
-
-    def language(self) -> str:
-        return self.language_name
-
-    def available_symbol_types(self) -> list[str]:
-        return list(self.symbol_types)
-
-    def parse_file(self, filename: str, source: str) -> ParsedFile:
-        raise NotImplementedError("Capability-only parser does not support parse_file")
-
-    def fetch_symbol(self, filename: str, source: str, symbol: str) -> SymbolMatch | None:
-        raise NotImplementedError("Capability-only parser does not support fetch_symbol")
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,14 +32,6 @@ class IgnoreRules:
             _matches_gitignore_pattern(pattern, normalized, is_directory=False)
             for pattern in self.patterns
         )
-
-
-DEFAULT_REGISTRY = ParserRegistry(
-    [
-        CapabilityOnlyParser("python", (".py",), PYTHON_SYMBOL_TYPES),
-        CapabilityOnlyParser("typescript", (".ts", ".tsx"), TYPESCRIPT_SYMBOL_TYPES),
-    ]
-)
 
 
 def get_project_structure(
@@ -104,7 +54,7 @@ def get_project_structure(
         patterns=patterns,
     )
     structure = render_tree(build_tree(matched_paths)) if matched_paths else ""
-    capabilities = DEFAULT_REGISTRY.capabilities_for_paths(matched_paths)
+    capabilities = DEFAULT_PARSER_REGISTRY.capabilities_for_paths(matched_paths)
 
     return GetProjectStructureResponse(
         root=".",

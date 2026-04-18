@@ -1,21 +1,62 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from code_explorer_mcp.models import ParseFileRequest, ParseFileResponse, ToolPlaceholderError
+from code_explorer_mcp.parser_registry import DEFAULT_PARSER_REGISTRY
+from code_explorer_mcp.parsing.common import select_symbol_types
+from code_explorer_mcp.utils.paths import ProjectPathError, resolve_project_path, to_relative_path
 
-
-SUPPORTED_PARSE_SYMBOL_TYPES: tuple[str, ...] = ()
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PARSER_REGISTRY = DEFAULT_PARSER_REGISTRY
+SUPPORTED_PARSE_SYMBOL_TYPES: tuple[str, ...] = tuple(
+    symbol_type
+    for symbol_types in PARSER_REGISTRY.list_capabilities().values()
+    for symbol_type in symbol_types
+)
 
 
 def parse_file(request: ParseFileRequest) -> ParseFileResponse:
-    return ParseFileResponse(
-        filename=request.filename,
-        language="unknown",
-        available_symbol_types=SUPPORTED_PARSE_SYMBOL_TYPES,
-        error=ToolPlaceholderError(
-            code="not_implemented",
-            message=(
-                "parse_file is not implemented yet in this task. "
-                "This composition-root skeleton only registers the tool contract."
+    try:
+        file_path = resolve_project_path(PROJECT_ROOT, request.filename)
+        relative_filename = to_relative_path(PROJECT_ROOT, file_path)
+        parser = PARSER_REGISTRY.get_for_filename(relative_filename)
+        source = file_path.read_text(encoding="utf-8")
+        parsed = parser.parse_file(relative_filename, source)
+        requested_symbol_types = select_symbol_types(
+            parsed.available_symbol_types,
+            request.content,
+        )
+    except ProjectPathError as exc:
+        return ParseFileResponse(
+            filename=request.filename,
+            language="unknown",
+            available_symbol_types=(),
+            error=ToolPlaceholderError(
+                code="invalid_path",
+                message=str(exc),
             ),
-        ),
+        )
+    except ValueError as exc:
+        return ParseFileResponse(
+            filename=request.filename,
+            language="unknown",
+            available_symbol_types=(),
+            error=ToolPlaceholderError(
+                code="unsupported_request",
+                message=str(exc),
+            ),
+        )
+
+    sections = {
+        symbol_type: parsed.sections[symbol_type]
+        for symbol_type in requested_symbol_types
+        if symbol_type in parsed.sections
+    }
+    return ParseFileResponse(
+        filename=parsed.filename,
+        language=parsed.language,
+        available_symbol_types=tuple(parsed.available_symbol_types),
+        sections=sections,
+        error=None,
     )
