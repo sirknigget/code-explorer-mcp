@@ -22,6 +22,7 @@ def test_parse_file_routes_python_and_typescript_by_extension() -> None:
             content={"interfaces": True, "functions": True, "imports": False},
         )
     )
+    typescript_full_response = parse_file(ParseFileRequest(filename=str(TYPESCRIPT_FIXTURE)))
 
     assert asdict(python_response) == {
         "filename": PYTHON_FILENAME,
@@ -81,6 +82,63 @@ def test_parse_file_routes_python_and_typescript_by_extension() -> None:
                 {"name": "arrowFunction", "syntax": "arrow"},
             ],
             "interfaces": [{"name": "MyInterface"}],
+        },
+        "error": None,
+    }
+    assert asdict(typescript_full_response) == {
+        "filename": TYPESCRIPT_FILENAME,
+        "language": "typescript",
+        "available_symbol_types": (
+            "imports",
+            "globals",
+            "classes",
+            "functions",
+            "interfaces",
+            "type_aliases",
+            "enums",
+            "re_exports",
+        ),
+        "sections": {
+            "imports": [
+                {"module": "./types", "default": "Thing", "namespace": None, "named": ["Helper"]},
+                {"module": "./utils", "default": None, "namespace": "Utils", "named": []},
+            ],
+            "globals": [
+                {"name": "TOP_LEVEL_CONST", "declaration_kind": "const"},
+                {"name": "arrowFunction", "declaration_kind": "const"},
+                {"name": "mutableValue", "declaration_kind": "let"},
+            ],
+            "classes": [
+                {
+                    "name": "MyClass",
+                    "members": [{"name": "value"}],
+                    "methods": [{"name": "run"}],
+                    "accessors": [
+                        {"name": "label", "kind": "getter"},
+                        {"name": "label", "kind": "setter"},
+                    ],
+                    "inner_classes": [
+                        {
+                            "name": "InnerClass",
+                            "members": [],
+                            "methods": [{"name": "runInner"}],
+                            "accessors": [],
+                            "inner_classes": [],
+                        }
+                    ],
+                }
+            ],
+            "functions": [
+                {"name": "namedFunction", "syntax": "function"},
+                {"name": "arrowFunction", "syntax": "arrow"},
+            ],
+            "interfaces": [{"name": "MyInterface"}],
+            "type_aliases": [{"name": "MyType"}],
+            "enums": [{"name": "MyEnum"}],
+            "re_exports": [
+                {"module": "./shared", "names": ["SharedThing"]},
+                {"module": "./everything", "names": []},
+            ],
         },
         "error": None,
     }

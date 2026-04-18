@@ -27,6 +27,10 @@ function makeSpan(sourceFile, node) {
 }
 
 function addSymbolSpan(symbolSpans, sourceFile, symbol, symbolType, node) {
+  if (symbolSpans[symbol]) {
+    return;
+  }
+
   symbolSpans[symbol] = {
     symbol_type: symbolType,
     span: makeSpan(sourceFile, node),
@@ -44,16 +48,16 @@ function parseImports(sourceFile) {
   return sourceFile.getImportDeclarations().map((declaration) => {
     const defaultImport = declaration.getDefaultImport();
     const namespaceImport = declaration.getNamespaceImport();
-    const namedImports = declaration.getNamedImports().map((specifier) => ({
-      name: specifier.getName(),
-      alias: specifier.getAliasNode()?.getText() ?? null,
-    }));
+    const namedImports = declaration
+      .getNamedImports()
+      .map((specifier) => specifier.getAliasNode()?.getText() ?? specifier.getName())
+      .sort((left, right) => left.localeCompare(right));
 
     return {
       module: declaration.getModuleSpecifierValue(),
-      default_import: defaultImport?.getText() ?? null,
-      namespace_import: namespaceImport?.getText() ?? null,
-      named_imports: namedImports,
+      default: defaultImport?.getText() ?? null,
+      namespace: namespaceImport?.getText() ?? null,
+      named: namedImports,
     };
   });
 }
@@ -75,7 +79,7 @@ function parseGlobals(sourceFile, symbolSpans) {
       const name = declaration.getName();
       globals.push({
         name,
-        kind: statement.getDeclarationKind(),
+        declaration_kind: statement.getDeclarationKind(),
       });
       addSymbolSpan(symbolSpans, sourceFile, name, "globals", declaration);
     }
@@ -147,15 +151,13 @@ function parseEnumDeclaration(declaration, sourceFile, symbolSpans) {
   addSymbolSpan(symbolSpans, sourceFile, name, "enums", declaration);
   return {
     name,
-    members: declaration.getMembers().map((member) => ({
-      name: member.getName(),
-    })),
   };
 }
 
 function parseClassExpression(expression, sourceFile, symbolSpans, dottedPrefix) {
   const members = [];
   const methods = [];
+  const accessors = [];
   const innerClasses = [];
 
   for (const member of expression.getMembers()) {
@@ -172,6 +174,7 @@ function parseClassExpression(expression, sourceFile, symbolSpans, dottedPrefix)
         innerClasses.push(
           parseClassExpression(initializer, sourceFile, symbolSpans, dottedName),
         );
+        addSymbolSpan(symbolSpans, sourceFile, dottedName, "classes", initializer);
         continue;
       }
 
@@ -180,11 +183,7 @@ function parseClassExpression(expression, sourceFile, symbolSpans, dottedPrefix)
       continue;
     }
 
-    if (
-      member.getKind() === SyntaxKind.MethodDeclaration ||
-      member.getKind() === SyntaxKind.GetAccessor ||
-      member.getKind() === SyntaxKind.SetAccessor
-    ) {
+    if (member.getKind() === SyntaxKind.MethodDeclaration) {
       const nameNode = member.getNameNode();
       if (!nameNode || nameNode.getKind() !== SyntaxKind.Identifier) {
         continue;
@@ -199,13 +198,44 @@ function parseClassExpression(expression, sourceFile, symbolSpans, dottedPrefix)
         "classes",
         member,
       );
+      continue;
+    }
+
+    if (
+      member.getKind() === SyntaxKind.GetAccessor ||
+      member.getKind() === SyntaxKind.SetAccessor
+    ) {
+      const nameNode = member.getNameNode();
+      if (!nameNode || nameNode.getKind() !== SyntaxKind.Identifier) {
+        continue;
+      }
+
+      const memberName = member.getName();
+      const kind = member.getKind() === SyntaxKind.GetAccessor ? "getter" : "setter";
+      accessors.push({ name: memberName, kind });
+      addSymbolSpan(
+        symbolSpans,
+        sourceFile,
+        `${dottedPrefix}.${memberName}`,
+        "classes",
+        member,
+      );
     }
   }
+
+  members.sort((left, right) => left.name.localeCompare(right.name));
+  methods.sort((left, right) => left.name.localeCompare(right.name));
+  accessors.sort((left, right) => {
+    const nameOrder = left.name.localeCompare(right.name);
+    return nameOrder === 0 ? left.kind.localeCompare(right.kind) : nameOrder;
+  });
+  innerClasses.sort((left, right) => left.name.localeCompare(right.name));
 
   return {
     name: expression.getName() ?? dottedPrefix.split(".").at(-1),
     members,
     methods,
+    accessors,
     inner_classes: innerClasses,
   };
 }
@@ -224,15 +254,14 @@ function parseReExports(sourceFile) {
       continue;
     }
 
-    const namedExports = declaration.getNamedExports().map((specifier) => ({
-      name: specifier.getName(),
-      alias: specifier.getAliasNode()?.getText() ?? null,
-    }));
+    const names = declaration
+      .getNamedExports()
+      .map((specifier) => specifier.getAliasNode()?.getText() ?? specifier.getName())
+      .sort((left, right) => left.localeCompare(right));
 
     reExports.push({
       module,
-      export_all: declaration.isNamespaceExport(),
-      named_exports: namedExports,
+      names,
     });
   }
   return reExports;
