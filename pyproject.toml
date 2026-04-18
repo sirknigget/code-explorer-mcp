@@ -8,14 +8,32 @@ version = "0.1.0"
 description = "Local MCP code exploration server prototypes"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "fastmcp>=3.2,<4",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0,<9",
+    "pytest-asyncio>=0.23,<1",
+]
 
 [project.scripts]
-ts-parser-poc = "main:main"
+code-explorer-mcp = "code_explorer_mcp.__main__:main"
+code-explorer-mcp-server = "code_explorer_mcp.__main__:main"
 ts-parser-poc-setup = "setup_ts_parser_poc:main"
 
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
 [tool.setuptools]
+package-dir = {"" = "src"}
 py-modules = ["main", "setup_ts_parser_poc"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["code_explorer_mcp*"]
+namespaces = true
 
 [tool.uv]
 package = true
