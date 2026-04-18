@@ -33,6 +33,18 @@ def fetch_symbol(request: FetchSymbolRequest) -> FetchSymbolResponse:
                 message=str(exc),
             ),
         )
+    except OSError as exc:
+        return FetchSymbolResponse(
+            filename=request.filename,
+            language="unknown",
+            symbol=request.symbol,
+            symbol_type=None,
+            code=None,
+            error=ToolPlaceholderError(
+                code="file_read_error",
+                message=f"Failed to read file {request.filename}: {exc}",
+            ),
+        )
     except ValueError as exc:
         return FetchSymbolResponse(
             filename=request.filename,
