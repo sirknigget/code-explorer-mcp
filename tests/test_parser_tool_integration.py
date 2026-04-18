@@ -205,6 +205,53 @@ def test_fetch_symbol_returns_symbol_not_found_error() -> None:
     }
 
 
+def test_parse_file_exposes_only_one_level_of_python_inner_classes(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    runtime_root = tmp_path / "runtime-root"
+    runtime_root.mkdir()
+    fixture_path = runtime_root / "sample.py"
+    fixture_path.write_text(
+        "class Outer:\n"
+        "    class Inner:\n"
+        "        class TooDeep:\n"
+        "            pass\n",
+        encoding="utf-8",
+    )
+    configure_runtime_root(runtime_root)
+    monkeypatch.chdir(tmp_path)
+
+    response = parse_file(ParseFileRequest(filename="sample.py"))
+
+    assert asdict(response) == {
+        "filename": "sample.py",
+        "language": "python",
+        "available_symbol_types": ("imports", "globals", "classes", "functions"),
+        "sections": {
+            "imports": [],
+            "globals": [],
+            "classes": [
+                {
+                    "name": "Outer",
+                    "members": [],
+                    "methods": [],
+                    "inner_classes": [
+                        {
+                            "name": "Inner",
+                            "members": [],
+                            "methods": [],
+                            "inner_classes": [],
+                        }
+                    ],
+                }
+            ],
+            "functions": [],
+        },
+        "error": None,
+    }
+
+
 def test_parse_and_fetch_use_configured_runtime_root(tmp_path: Path, monkeypatch) -> None:
     runtime_root = tmp_path / "runtime-root"
     runtime_root.mkdir()

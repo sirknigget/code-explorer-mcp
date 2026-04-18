@@ -40,6 +40,7 @@ This repository is a local FastMCP server that exposes deterministic code-explor
 - Language support is plugin-style through `Parser` and `ParserRegistry` in `src/code_explorer_mcp/parsing/base.py`.
 - `src/code_explorer_mcp/parser_registry.py` wires the default registry with the Python and TypeScript parsers.
 - Python parsing is pure stdlib AST in `src/code_explorer_mcp/parsing/python_parser.py`.
+- Python class parsing intentionally exposes nested classes only one level deep: a top-level class may report direct `inner_classes`, while deeper nested classes are ignored.
 - TypeScript parsing is delegated to a Node bridge in `src/code_explorer_mcp/parsing/typescript_parser.py`, which shells out to `typescript_bridge.mjs` and requires Node dependencies installed under `src/code_explorer_mcp/parsing/node_modules`.
 - Shared parsed-file and source-span structures live in `src/code_explorer_mcp/parsing/common.py`; they are what keeps responses deterministic across parsers.
 
