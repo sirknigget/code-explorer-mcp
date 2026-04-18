@@ -1,0 +1,9 @@
+{
+  "name": "ts-parser-poc",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "ts-morph": "24.0.0",
+    "typescript": "5.7.3"
+  }
+}

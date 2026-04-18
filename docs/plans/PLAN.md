@@ -5,7 +5,7 @@ This document describes the MVP only. The MVP should optimize for stable contrac
 
 The MVP should initially support:
 - Python parsing via stdlib `ast`
-- TypeScript and TSX parsing via an existing parser implementation
+- TypeScript and TSX parsing via a local `ts-morph` Node bridge
 
 The design must leave room to add more languages later, but language support should stay behind a shared parser abstraction. The abstraction should unify parser discovery, capability reporting, parsing, and symbol fetching. It should not force every language into the same symbol taxonomy.
 
@@ -94,6 +94,8 @@ It should not require all languages to emit identical sections.
 ### Behavior
 - Walk from project root or the requested subfolder.
 - Support comma-separated wildcard patterns such as `*.py,*.ts,src/*` using normalized relative paths.
+- Respect repository ignore rules from `.gitignore`.
+- Ignore common generated and dependency folders even if they are not explicitly requested, including `.venv`, `venv`, `env`, `node_modules`, `.mypy_cache`, `.pytest_cache`, `dist`, `build`, `coverage`, and `__pycache__`.
 - Return folders and files relative to project root.
 - Produce stable output:
   - directories before files
@@ -318,8 +320,8 @@ Examples:
 - Shared names such as `classes` or `functions` may overlap across languages, but the system should not force unrelated constructs into a fake universal taxonomy.
 
 # TypeScript parser recommendation
-## Recommended option: `ts-morph` via a local Node bridge
-The preferred MVP implementation is a small local Node bridge using `ts-morph`.
+## Chosen option: `ts-morph` via a local Node bridge
+The MVP TypeScript implementation should use a small local Node bridge built on `ts-morph`.
 
 Why this is the best fit:
 - built on the TypeScript compiler API rather than handwritten scanning
@@ -331,18 +333,21 @@ Tradeoffs:
 - introduces a Node runtime and package dependency in an otherwise Python-first project
 - project setup is slightly heavier than a pure Python solution
 
-## Fallback option: Python `tree-sitter` + `tree-sitter-typescript`
-Use this only if keeping the stack Python-first is more important than extraction ergonomics.
+## Current proof of concept
+A working proof of concept exists under `src/ts_parser_poc` and should inform the production parser implementation.
 
-Why to consider it:
-- keeps orchestration in Python
-- uses a real grammar rather than regex or ad hoc scanning
-- supports structural traversal and source spans
+The POC currently demonstrates:
+- `ts-morph` parsing for the planned TypeScript symbol categories
+- exact source snippet capture for symbol fetch scenarios
+- Python-to-Node bridge execution
+- explicit setup and run commands through `uv`
 
-Tradeoffs:
-- lower-level traversal work than `ts-morph`
-- more manual normalization work for the expanded TypeScript contract
-- higher likelihood of implementation complexity around edge constructs
+Current local workflow for the POC:
+1. `uv sync`
+2. `uv run ts-parser-poc-setup`
+3. `uv run ts-parser-poc`
+
+The production implementation does not need to preserve the POC folder layout, but it should preserve the same practical setup model: Python-managed entrypoints, explicit Node dependency setup, and a runner that assumes setup has already happened.
 
 # Parsing details
 ## Python parsing details
@@ -398,14 +403,17 @@ Even with the expanded TypeScript symbol set, the MVP may still intentionally si
 # Implementation steps
 1. Update `pyproject.toml` for a `src/` package layout and add the minimum dependencies:
    - runtime: `fastmcp`
-   - TypeScript parsing: Node-side `ts-morph` bridge for the recommended path, or Python `tree-sitter` dependencies for the fallback path
+   - TypeScript parsing: Node-side `ts-morph` bridge
    - test: `pytest`, `pytest-asyncio`
+   - expose explicit local commands for setup and execution where helpful
 2. Replace `main.py` with a thin entrypoint that imports the FastMCP app and runs it over stdio.
 3. Define stable response models in `models.py` before implementing tools so tests can target exact JSON contracts.
 4. Implement path normalization and project-root validation in `utils/paths.py`.
 5. Implement the shared parser abstraction in `parsing/base.py` and registry / parser-selection wiring in the tool layer.
 6. Implement `get_project_structure`:
    - enumerate files under root or subfolder
+   - respect `.gitignore`
+   - skip common generated and dependency directories such as `.venv`, `venv`, `env`, `node_modules`, `.mypy_cache`, `.pytest_cache`, `dist`, `build`, `coverage`, and `__pycache__`
    - filter by comma-separated wildcard patterns
    - build a deterministic nested tree via `utils/tree.py`
    - render the tree into a readable non-redundant structure string
@@ -415,8 +423,8 @@ Even with the expanded TypeScript symbol set, the MVP may still intentionally si
    - expose Python symbol types: `imports`, `globals`, `classes`, `functions`
    - record source spans for globals, classes, inner classes, methods, and functions
 8. Implement TypeScript parsing in `parsing/typescript_parser.py`:
-   - preferred: call a small local Node bridge using `ts-morph`
-   - fallback: use Python `tree-sitter` bindings with `tree-sitter-typescript`
+   - call a small local Node bridge using `ts-morph`
+   - use the existing `src/ts_parser_poc` work as the reference for symbol coverage, bridge behavior, and setup ergonomics
    - expose TypeScript symbol types: `imports`, `globals`, `classes`, `functions`, `interfaces`, `type_aliases`, `enums`, `re_exports`
    - include inner classes, accessors, and arrow-function bindings in the parser output where appropriate
    - record exact source spans for all symbol types needed by `fetch_symbol`
@@ -438,6 +446,8 @@ Use a fixed fixture tree and assert exact output for:
 - `*.py`
 - `*.py,*.ts`
 - folder wildcard cases
+- ignored generated/dependency folders
+- `.gitignore`-excluded paths
 - detected `languages_present`
 - exact `available_symbol_types_by_language`
 

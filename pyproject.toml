@@ -1,7 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "code-explorer-mcp"
 version = "0.1.0"
-description = "Add your description here"
+description = "Local MCP code exploration server prototypes"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = []
+
+[project.scripts]
+ts-parser-poc = "main:main"
+ts-parser-poc-setup = "setup_ts_parser_poc:main"
+
+[tool.setuptools]
+py-modules = ["main", "setup_ts_parser_poc"]
+
+[tool.uv]
+package = true
