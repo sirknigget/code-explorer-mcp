@@ -7,18 +7,23 @@ from pathlib import Path
 
 import pytest
 
-from code_explorer_mcp.models import FetchSymbolRequest, ParseFileRequest, ToolPlaceholderError
+from code_explorer_mcp.models import (
+    FetchSymbolRequest,
+    ParseFileRequest,
+    ToolPlaceholderError,
+)
 from code_explorer_mcp.runtime_config import RuntimeConfig
 from code_explorer_mcp.server import create_mcp_server
 from code_explorer_mcp.tool_file_parse import parse_file
 from code_explorer_mcp.tool_symbol_fetch import fetch_symbol
 
-FIXTURES = Path(__file__).resolve().parent / "fixtures"
-PYTHON_FIXTURE = FIXTURES / "python_sample.py"
-TYPESCRIPT_FIXTURE = FIXTURES / "typescript_sample.ts"
 PYTHON_FILENAME = "tests/fixtures/python_sample.py"
 TYPESCRIPT_FILENAME = "tests/fixtures/typescript_sample.ts"
-TEST_RUNTIME_CONFIG = RuntimeConfig(project_root=Path(__file__).resolve().parents[1])
+
+
+@pytest.fixture
+def runtime_config(pytestconfig: pytest.Config) -> RuntimeConfig:
+    return RuntimeConfig(project_root=pytestconfig.rootpath)
 
 
 def test_runtime_config_is_immutable() -> None:
@@ -28,21 +33,23 @@ def test_runtime_config_is_immutable() -> None:
         cast(Any, runtime_config).project_root = Path("/tmp/other")
 
 
-def test_parse_file_routes_python_and_typescript_by_extension() -> None:
+def test_parse_file_routes_python_and_typescript_by_extension(
+    runtime_config: RuntimeConfig,
+) -> None:
     python_response = parse_file(
         ParseFileRequest(filename=PYTHON_FILENAME),
-        runtime_config=TEST_RUNTIME_CONFIG,
+        runtime_config=runtime_config,
     )
     typescript_response = parse_file(
         ParseFileRequest(
             filename=TYPESCRIPT_FILENAME,
             content={"interfaces": True, "functions": True, "imports": False},
         ),
-        runtime_config=TEST_RUNTIME_CONFIG,
+        runtime_config=runtime_config,
     )
     typescript_full_response = parse_file(
         ParseFileRequest(filename=TYPESCRIPT_FILENAME),
-        runtime_config=TEST_RUNTIME_CONFIG,
+        runtime_config=runtime_config,
     )
 
     assert asdict(python_response) == {
@@ -175,13 +182,15 @@ def test_parse_file_routes_python_and_typescript_by_extension() -> None:
     }
 
 
-def test_parse_file_reports_invalid_request_for_unknown_symbol_type() -> None:
+def test_parse_file_reports_invalid_request_for_unknown_symbol_type(
+    runtime_config: RuntimeConfig,
+) -> None:
     response = parse_file(
         ParseFileRequest(
             filename=TYPESCRIPT_FILENAME,
             content={"decorators": True},
         ),
-        runtime_config=TEST_RUNTIME_CONFIG,
+        runtime_config=runtime_config,
     )
 
     assert response.error == ToolPlaceholderError(
@@ -192,11 +201,14 @@ def test_parse_file_reports_invalid_request_for_unknown_symbol_type() -> None:
 
 def test_parse_file_and_fetch_symbol_return_mcp_errors_for_file_read_failures(
     monkeypatch,
+    runtime_config: RuntimeConfig,
 ) -> None:
     original_read_text = Path.read_text
 
+    fixture_path = runtime_config.project_root / PYTHON_FILENAME
+
     def raise_read_error(path: Path, *, encoding: str = "utf-8") -> str:
-        if path == PYTHON_FIXTURE:
+        if path == fixture_path:
             raise OSError("Permission denied while reading fixture")
         return original_read_text(path, encoding=encoding)
 
@@ -204,11 +216,11 @@ def test_parse_file_and_fetch_symbol_return_mcp_errors_for_file_read_failures(
 
     parse_response = parse_file(
         ParseFileRequest(filename=PYTHON_FILENAME),
-        runtime_config=TEST_RUNTIME_CONFIG,
+        runtime_config=runtime_config,
     )
     fetch_response = fetch_symbol(
         FetchSymbolRequest(filename=PYTHON_FILENAME, symbol="MyClass"),
-        runtime_config=TEST_RUNTIME_CONFIG,
+        runtime_config=runtime_config,
     )
 
     assert asdict(parse_response) == {
@@ -240,14 +252,16 @@ def test_parse_file_and_fetch_symbol_return_mcp_errors_for_file_read_failures(
     }
 
 
-def test_fetch_symbol_routes_python_and_typescript_by_extension() -> None:
+def test_fetch_symbol_routes_python_and_typescript_by_extension(
+    runtime_config: RuntimeConfig,
+) -> None:
     python_response = fetch_symbol(
         FetchSymbolRequest(filename=PYTHON_FILENAME, symbol="MyClass.my_async_method"),
-        runtime_config=TEST_RUNTIME_CONFIG,
+        runtime_config=runtime_config,
     )
     typescript_response = fetch_symbol(
         FetchSymbolRequest(filename=TYPESCRIPT_FILENAME, symbol="MyEnum"),
-        runtime_config=TEST_RUNTIME_CONFIG,
+        runtime_config=runtime_config,
     )
 
     assert asdict(python_response) == {
@@ -268,10 +282,12 @@ def test_fetch_symbol_routes_python_and_typescript_by_extension() -> None:
     }
 
 
-def test_fetch_symbol_returns_symbol_not_found_error() -> None:
+def test_fetch_symbol_returns_symbol_not_found_error(
+    runtime_config: RuntimeConfig,
+) -> None:
     response = fetch_symbol(
         FetchSymbolRequest(filename=TYPESCRIPT_FILENAME, symbol="Missing"),
-        runtime_config=TEST_RUNTIME_CONFIG,
+        runtime_config=runtime_config,
     )
 
     assert asdict(response) == {
@@ -295,10 +311,7 @@ def test_parse_file_exposes_only_one_level_of_python_inner_classes(
     runtime_root.mkdir()
     fixture_path = runtime_root / "sample.py"
     fixture_path.write_text(
-        "class Outer:\n"
-        "    class Inner:\n"
-        "        class TooDeep:\n"
-        "            pass\n",
+        "class Outer:\n    class Inner:\n        class TooDeep:\n            pass\n",
         encoding="utf-8",
     )
     runtime_config = RuntimeConfig(project_root=runtime_root)
@@ -533,7 +546,9 @@ def test_fetch_symbol_handles_unicode_prefix_in_python_and_typescript(
     }
 
 
-def test_servers_use_their_own_runtime_configs_without_global_mutation(tmp_path: Path) -> None:
+def test_servers_use_their_own_runtime_configs_without_global_mutation(
+    tmp_path: Path,
+) -> None:
     first_root = tmp_path / "first-root"
     second_root = tmp_path / "second-root"
     first_root.mkdir()

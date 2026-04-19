@@ -8,10 +8,8 @@ import pytest
 from fastmcp import Client
 from fastmcp.client.transports import StdioTransport
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-FIXTURES = REPO_ROOT / "tests" / "fixtures"
-PYTHON_FIXTURE = FIXTURES / "python_sample.py"
-TYPESCRIPT_FIXTURE = FIXTURES / "typescript_sample.ts"
+PYTHON_FIXTURE = Path("tests/fixtures/python_sample.py")
+TYPESCRIPT_FIXTURE = Path("tests/fixtures/typescript_sample.ts")
 
 
 def write_file(path: Path, content: str = "") -> None:
@@ -19,7 +17,7 @@ def write_file(path: Path, content: str = "") -> None:
     path.write_text(content, encoding="utf-8")
 
 
-def make_fixture_repo(tmp_path: Path) -> Path:
+def make_fixture_repo(tmp_path: Path, repo_root: Path) -> Path:
     write_file(
         tmp_path / ".gitignore",
         "ignored.py\nignored_dir/\ndocs/*.tmp\n",
@@ -28,35 +26,47 @@ def make_fixture_repo(tmp_path: Path) -> Path:
     write_file(tmp_path / "ignored.py", "IGNORED = True\n")
     write_file(tmp_path / "src" / "app.py", "print('app')\n")
     write_file(tmp_path / "src" / "pkg" / "module.py", "VALUE = 1\n")
-    write_file(tmp_path / "src" / "pkg" / "component.ts", "export const component = 1;\n")
-    write_file(tmp_path / "src" / "pkg" / "view.tsx", "export const View = () => null;\n")
+    write_file(
+        tmp_path / "src" / "pkg" / "component.ts", "export const component = 1;\n"
+    )
+    write_file(
+        tmp_path / "src" / "pkg" / "view.tsx", "export const View = () => null;\n"
+    )
     write_file(tmp_path / "tests" / "test_app.py", "def test_app():\n    assert True\n")
     write_file(tmp_path / "docs" / "plans" / "PLAN.md", "plan\n")
     write_file(tmp_path / "docs" / "notes.tmp", "ignored temp\n")
     write_file(tmp_path / "ignored_dir" / "kept.ts", "export const hidden = true;\n")
-    write_file(tmp_path / "node_modules" / "left-pad" / "index.js", "module.exports = {};\n")
+    write_file(
+        tmp_path / "node_modules" / "left-pad" / "index.js", "module.exports = {};\n"
+    )
     write_file(tmp_path / ".venv" / "bin" / "python", "")
     write_file(tmp_path / "build" / "generated.py", "print('generated')\n")
     write_file(tmp_path / "coverage" / "index.html", "coverage\n")
     write_file(tmp_path / "pkg" / "__pycache__" / "module.pyc", "")
     (tmp_path / "tests" / "fixtures").mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(PYTHON_FIXTURE, tmp_path / "tests" / "fixtures" / "python_sample.py")
     shutil.copyfile(
-        TYPESCRIPT_FIXTURE,
+        repo_root / PYTHON_FIXTURE,
+        tmp_path / "tests" / "fixtures" / "python_sample.py",
+    )
+    shutil.copyfile(
+        repo_root / TYPESCRIPT_FIXTURE,
         tmp_path / "tests" / "fixtures" / "typescript_sample.ts",
     )
     return tmp_path
 
 
 @pytest.mark.asyncio
-async def test_stdio_client_lists_tools_and_calls_each_tool(tmp_path: Path) -> None:
-    project_root = make_fixture_repo(tmp_path)
+async def test_stdio_client_lists_tools_and_calls_each_tool(
+    tmp_path: Path,
+    pytestconfig: pytest.Config,
+) -> None:
+    project_root = make_fixture_repo(tmp_path, pytestconfig.rootpath)
     transport = StdioTransport(
         command="uv",
         args=[
             "run",
             "--project",
-            str(REPO_ROOT),
+            str(pytestconfig.rootpath),
             "code-explorer-mcp",
         ],
         cwd=str(project_root),
