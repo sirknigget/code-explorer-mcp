@@ -11,6 +11,7 @@ from code_explorer_mcp.parsing.common import (
     SymbolMatch,
     SymbolSpan,
     make_parsed_file,
+    slice_source_span,
 )
 
 PYTHON_SYMBOL_TYPES: tuple[str, ...] = (
@@ -264,19 +265,11 @@ class PythonParser(Parser):
         )
 
     def _slice_source(self, source: str, span: SourceSpan) -> str:
-        lines = source.splitlines(keepends=True)
-        start_offset = self._offset_for_position(lines, span.start)
-        end_offset = self._offset_for_position(lines, span.end)
-        return source[start_offset:end_offset]
-
-    def _offset_for_position(
-        self,
-        lines: list[str],
-        position: SourcePosition,
-    ) -> int:
-        line_text = lines[position.line - 1]
-        column = self._character_column_for_utf8_offset(line_text, position.column)
-        return sum(len(line) for line in lines[: position.line - 1]) + column
+        return slice_source_span(
+            source,
+            span,
+            column_to_character_offset=self._character_column_for_utf8_offset,
+        )
 
     def _character_column_for_utf8_offset(self, line_text: str, utf8_offset: int) -> int:
         if utf8_offset < 0:
