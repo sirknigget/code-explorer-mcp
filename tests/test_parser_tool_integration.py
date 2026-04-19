@@ -274,6 +274,164 @@ def test_fetch_symbol_returns_symbol_not_found_error() -> None:
     }
 
 
+def test_parse_file_exposes_only_one_level_of_python_inner_classes(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    runtime_root = tmp_path / "runtime-root"
+    runtime_root.mkdir()
+    fixture_path = runtime_root / "sample.py"
+    fixture_path.write_text(
+        "class Outer:\n"
+        "    class Inner:\n"
+        "        class TooDeep:\n"
+        "            pass\n",
+        encoding="utf-8",
+    )
+    runtime_config = RuntimeConfig(project_root=runtime_root)
+    monkeypatch.chdir(tmp_path)
+
+    response = parse_file(
+        ParseFileRequest(filename="sample.py"),
+        runtime_config=runtime_config,
+    )
+
+    assert asdict(response) == {
+        "filename": "sample.py",
+        "language": "python",
+        "available_symbol_types": ("imports", "globals", "classes", "functions"),
+        "sections": {
+            "imports": [],
+            "globals": [],
+            "classes": [
+                {
+                    "name": "Outer",
+                    "members": [],
+                    "methods": [],
+                    "inner_classes": [
+                        {
+                            "name": "Inner",
+                            "members": [],
+                            "methods": [],
+                            "inner_classes": [],
+                        }
+                    ],
+                }
+            ],
+            "functions": [],
+        },
+        "error": None,
+    }
+
+
+def test_parse_file_exposes_only_one_level_of_typescript_inner_classes(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    runtime_root = tmp_path / "runtime-root"
+    runtime_root.mkdir()
+    fixture_path = runtime_root / "sample.ts"
+    fixture_path.write_text(
+        "export class Outer {\n"
+        "  Inner = class Inner {\n"
+        "    TooDeep = class TooDeep {\n"
+        "      run(): string {\n"
+        '        return "ok";\n'
+        "      }\n"
+        "    };\n"
+        "  };\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    runtime_config = RuntimeConfig(project_root=runtime_root)
+    monkeypatch.chdir(tmp_path)
+
+    response = parse_file(
+        ParseFileRequest(filename="sample.ts"),
+        runtime_config=runtime_config,
+    )
+
+    assert asdict(response) == {
+        "filename": "sample.ts",
+        "language": "typescript",
+        "available_symbol_types": (
+            "imports",
+            "globals",
+            "classes",
+            "functions",
+            "interfaces",
+            "type_aliases",
+            "enums",
+            "re_exports",
+        ),
+        "sections": {
+            "imports": [],
+            "globals": [],
+            "classes": [
+                {
+                    "name": "Outer",
+                    "members": [],
+                    "methods": [],
+                    "accessors": [],
+                    "inner_classes": [
+                        {
+                            "name": "Inner",
+                            "members": [],
+                            "methods": [],
+                            "accessors": [],
+                            "inner_classes": [],
+                        }
+                    ],
+                }
+            ],
+            "functions": [],
+            "interfaces": [],
+            "type_aliases": [],
+            "enums": [],
+            "re_exports": [],
+        },
+        "error": None,
+    }
+
+
+def test_fetch_symbol_omits_too_deep_typescript_inner_class_symbols(
+    tmp_path: Path,
+) -> None:
+    runtime_root = tmp_path / "runtime-root"
+    runtime_root.mkdir()
+    fixture_path = runtime_root / "sample.ts"
+    fixture_path.write_text(
+        "export class Outer {\n"
+        "  Inner = class Inner {\n"
+        "    TooDeep = class TooDeep {\n"
+        "      run(): string {\n"
+        '        return "ok";\n'
+        "      }\n"
+        "    };\n"
+        "  };\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    runtime_config = RuntimeConfig(project_root=runtime_root)
+
+    response = fetch_symbol(
+        FetchSymbolRequest(filename="sample.ts", symbol="Outer.Inner.TooDeep"),
+        runtime_config=runtime_config,
+    )
+
+    assert asdict(response) == {
+        "filename": "sample.ts",
+        "language": "typescript",
+        "symbol": "Outer.Inner.TooDeep",
+        "symbol_type": None,
+        "code": None,
+        "error": {
+            "code": "symbol_not_found",
+            "message": "Symbol not found: Outer.Inner.TooDeep",
+        },
+    }
+
+
 def test_parse_and_fetch_use_supplied_runtime_config_instead_of_process_cwd(
     tmp_path: Path,
     monkeypatch,
