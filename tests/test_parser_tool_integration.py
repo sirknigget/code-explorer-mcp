@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import asdict
+import asyncio
+from dataclasses import FrozenInstanceError, asdict
 from pathlib import Path
 
-from code_explorer_mcp.models import (
-    FetchSymbolRequest,
-    ParseFileRequest,
-    ToolPlaceholderError,
-)
-from code_explorer_mcp.runtime_context import configure_runtime_root
+import pytest
+
+from code_explorer_mcp.models import FetchSymbolRequest, ParseFileRequest, ToolPlaceholderError
+from code_explorer_mcp.runtime_config import RuntimeConfig
+from code_explorer_mcp.server import create_mcp_server
 from code_explorer_mcp.tool_file_parse import parse_file
 from code_explorer_mcp.tool_symbol_fetch import fetch_symbol
 
@@ -17,20 +17,29 @@ PYTHON_FIXTURE = FIXTURES / "python_sample.py"
 TYPESCRIPT_FIXTURE = FIXTURES / "typescript_sample.ts"
 PYTHON_FILENAME = "tests/fixtures/python_sample.py"
 TYPESCRIPT_FILENAME = "tests/fixtures/typescript_sample.ts"
+TEST_RUNTIME_CONFIG = RuntimeConfig(project_root=Path(__file__).resolve().parents[1])
 
-configure_runtime_root(Path(__file__).resolve().parents[1])
+
+def test_runtime_config_is_immutable() -> None:
+    with pytest.raises(FrozenInstanceError):
+        TEST_RUNTIME_CONFIG.project_root = Path("/tmp/other")
 
 
 def test_parse_file_routes_python_and_typescript_by_extension() -> None:
-    python_response = parse_file(ParseFileRequest(filename=str(PYTHON_FIXTURE)))
+    python_response = parse_file(
+        ParseFileRequest(filename=PYTHON_FILENAME),
+        runtime_config=TEST_RUNTIME_CONFIG,
+    )
     typescript_response = parse_file(
         ParseFileRequest(
-            filename=str(TYPESCRIPT_FIXTURE),
+            filename=TYPESCRIPT_FILENAME,
             content={"interfaces": True, "functions": True, "imports": False},
-        )
+        ),
+        runtime_config=TEST_RUNTIME_CONFIG,
     )
     typescript_full_response = parse_file(
-        ParseFileRequest(filename=str(TYPESCRIPT_FIXTURE))
+        ParseFileRequest(filename=TYPESCRIPT_FILENAME),
+        runtime_config=TEST_RUNTIME_CONFIG,
     )
 
     assert asdict(python_response) == {
@@ -166,9 +175,10 @@ def test_parse_file_routes_python_and_typescript_by_extension() -> None:
 def test_parse_file_reports_invalid_request_for_unknown_symbol_type() -> None:
     response = parse_file(
         ParseFileRequest(
-            filename=str(TYPESCRIPT_FIXTURE),
+            filename=TYPESCRIPT_FILENAME,
             content={"decorators": True},
-        )
+        ),
+        runtime_config=TEST_RUNTIME_CONFIG,
     )
 
     assert response.error == ToolPlaceholderError(
@@ -177,14 +187,64 @@ def test_parse_file_reports_invalid_request_for_unknown_symbol_type() -> None:
     )
 
 
+def test_parse_file_and_fetch_symbol_return_mcp_errors_for_file_read_failures(
+    monkeypatch,
+) -> None:
+    original_read_text = Path.read_text
+
+    def raise_read_error(path: Path, *, encoding: str = "utf-8") -> str:
+        if path == PYTHON_FIXTURE:
+            raise OSError("Permission denied while reading fixture")
+        return original_read_text(path, encoding=encoding)
+
+    monkeypatch.setattr(Path, "read_text", raise_read_error)
+
+    parse_response = parse_file(
+        ParseFileRequest(filename=PYTHON_FILENAME),
+        runtime_config=TEST_RUNTIME_CONFIG,
+    )
+    fetch_response = fetch_symbol(
+        FetchSymbolRequest(filename=PYTHON_FILENAME, symbol="MyClass"),
+        runtime_config=TEST_RUNTIME_CONFIG,
+    )
+
+    assert asdict(parse_response) == {
+        "filename": PYTHON_FILENAME,
+        "language": "unknown",
+        "available_symbol_types": (),
+        "sections": {},
+        "error": {
+            "code": "file_read_error",
+            "message": (
+                "Failed to read file tests/fixtures/python_sample.py: "
+                "Permission denied while reading fixture"
+            ),
+        },
+    }
+    assert asdict(fetch_response) == {
+        "filename": PYTHON_FILENAME,
+        "language": "unknown",
+        "symbol": "MyClass",
+        "symbol_type": None,
+        "code": None,
+        "error": {
+            "code": "file_read_error",
+            "message": (
+                "Failed to read file tests/fixtures/python_sample.py: "
+                "Permission denied while reading fixture"
+            ),
+        },
+    }
+
+
 def test_fetch_symbol_routes_python_and_typescript_by_extension() -> None:
     python_response = fetch_symbol(
-        FetchSymbolRequest(
-            filename=str(PYTHON_FIXTURE), symbol="MyClass.my_async_method"
-        ),
+        FetchSymbolRequest(filename=PYTHON_FILENAME, symbol="MyClass.my_async_method"),
+        runtime_config=TEST_RUNTIME_CONFIG,
     )
     typescript_response = fetch_symbol(
-        FetchSymbolRequest(filename=str(TYPESCRIPT_FIXTURE), symbol="MyEnum"),
+        FetchSymbolRequest(filename=TYPESCRIPT_FILENAME, symbol="MyEnum"),
+        runtime_config=TEST_RUNTIME_CONFIG,
     )
 
     assert asdict(python_response) == {
@@ -207,7 +267,8 @@ def test_fetch_symbol_routes_python_and_typescript_by_extension() -> None:
 
 def test_fetch_symbol_returns_symbol_not_found_error() -> None:
     response = fetch_symbol(
-        FetchSymbolRequest(filename=str(TYPESCRIPT_FIXTURE), symbol="Missing"),
+        FetchSymbolRequest(filename=TYPESCRIPT_FILENAME, symbol="Missing"),
+        runtime_config=TEST_RUNTIME_CONFIG,
     )
 
     assert asdict(response) == {
@@ -223,19 +284,182 @@ def test_fetch_symbol_returns_symbol_not_found_error() -> None:
     }
 
 
-def test_parse_and_fetch_use_configured_runtime_root(
-    tmp_path: Path, monkeypatch
+def test_parse_file_exposes_only_one_level_of_python_inner_classes(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    runtime_root = tmp_path / "runtime-root"
+    runtime_root.mkdir()
+    fixture_path = runtime_root / "sample.py"
+    fixture_path.write_text(
+        "class Outer:\n"
+        "    class Inner:\n"
+        "        class TooDeep:\n"
+        "            pass\n",
+        encoding="utf-8",
+    )
+    runtime_config = RuntimeConfig(project_root=runtime_root)
+    monkeypatch.chdir(tmp_path)
+
+    response = parse_file(
+        ParseFileRequest(filename="sample.py"),
+        runtime_config=runtime_config,
+    )
+
+    assert asdict(response) == {
+        "filename": "sample.py",
+        "language": "python",
+        "available_symbol_types": ("imports", "globals", "classes", "functions"),
+        "sections": {
+            "imports": [],
+            "globals": [],
+            "classes": [
+                {
+                    "name": "Outer",
+                    "members": [],
+                    "methods": [],
+                    "inner_classes": [
+                        {
+                            "name": "Inner",
+                            "members": [],
+                            "methods": [],
+                            "inner_classes": [],
+                        }
+                    ],
+                }
+            ],
+            "functions": [],
+        },
+        "error": None,
+    }
+
+
+def test_parse_file_exposes_only_one_level_of_typescript_inner_classes(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    runtime_root = tmp_path / "runtime-root"
+    runtime_root.mkdir()
+    fixture_path = runtime_root / "sample.ts"
+    fixture_path.write_text(
+        "export class Outer {\n"
+        "  Inner = class Inner {\n"
+        "    TooDeep = class TooDeep {\n"
+        "      run(): string {\n"
+        '        return "ok";\n'
+        "      }\n"
+        "    };\n"
+        "  };\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    runtime_config = RuntimeConfig(project_root=runtime_root)
+    monkeypatch.chdir(tmp_path)
+
+    response = parse_file(
+        ParseFileRequest(filename="sample.ts"),
+        runtime_config=runtime_config,
+    )
+
+    assert asdict(response) == {
+        "filename": "sample.ts",
+        "language": "typescript",
+        "available_symbol_types": (
+            "imports",
+            "globals",
+            "classes",
+            "functions",
+            "interfaces",
+            "type_aliases",
+            "enums",
+            "re_exports",
+        ),
+        "sections": {
+            "imports": [],
+            "globals": [],
+            "classes": [
+                {
+                    "name": "Outer",
+                    "members": [],
+                    "methods": [],
+                    "accessors": [],
+                    "inner_classes": [
+                        {
+                            "name": "Inner",
+                            "members": [],
+                            "methods": [],
+                            "accessors": [],
+                            "inner_classes": [],
+                        }
+                    ],
+                }
+            ],
+            "functions": [],
+            "interfaces": [],
+            "type_aliases": [],
+            "enums": [],
+            "re_exports": [],
+        },
+        "error": None,
+    }
+
+
+def test_fetch_symbol_omits_too_deep_typescript_inner_class_symbols(
+    tmp_path: Path,
+) -> None:
+    runtime_root = tmp_path / "runtime-root"
+    runtime_root.mkdir()
+    fixture_path = runtime_root / "sample.ts"
+    fixture_path.write_text(
+        "export class Outer {\n"
+        "  Inner = class Inner {\n"
+        "    TooDeep = class TooDeep {\n"
+        "      run(): string {\n"
+        '        return "ok";\n'
+        "      }\n"
+        "    };\n"
+        "  };\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    runtime_config = RuntimeConfig(project_root=runtime_root)
+
+    response = fetch_symbol(
+        FetchSymbolRequest(filename="sample.ts", symbol="Outer.Inner.TooDeep"),
+        runtime_config=runtime_config,
+    )
+
+    assert asdict(response) == {
+        "filename": "sample.ts",
+        "language": "typescript",
+        "symbol": "Outer.Inner.TooDeep",
+        "symbol_type": None,
+        "code": None,
+        "error": {
+            "code": "symbol_not_found",
+            "message": "Symbol not found: Outer.Inner.TooDeep",
+        },
+    }
+
+
+def test_parse_and_fetch_use_supplied_runtime_config_instead_of_process_cwd(
+    tmp_path: Path,
+    monkeypatch,
 ) -> None:
     runtime_root = tmp_path / "runtime-root"
     runtime_root.mkdir()
     fixture_path = runtime_root / "sample.py"
     fixture_path.write_text("VALUE = 1\n", encoding="utf-8")
-    configure_runtime_root(runtime_root)
+    runtime_config = RuntimeConfig(project_root=runtime_root)
     monkeypatch.chdir(tmp_path)
 
-    parse_response = parse_file(ParseFileRequest(filename="sample.py"))
+    parse_response = parse_file(
+        ParseFileRequest(filename="sample.py"),
+        runtime_config=runtime_config,
+    )
     fetch_response = fetch_symbol(
-        FetchSymbolRequest(filename="sample.py", symbol="VALUE")
+        FetchSymbolRequest(filename="sample.py", symbol="VALUE"),
+        runtime_config=runtime_config,
     )
 
     assert asdict(parse_response) == {
@@ -276,14 +500,16 @@ def test_fetch_symbol_handles_unicode_prefix_in_python_and_typescript(
         'const emoji = "😀"; export function hello(): string { return "hi"; }\n',
         encoding="utf-8",
     )
-    configure_runtime_root(runtime_root)
+    runtime_config = RuntimeConfig(project_root=runtime_root)
     monkeypatch.chdir(tmp_path)
 
     python_response = fetch_symbol(
         FetchSymbolRequest(filename="unicode_sample.py", symbol="VALUE"),
+        runtime_config=runtime_config,
     )
     typescript_response = fetch_symbol(
         FetchSymbolRequest(filename="unicode_sample.ts", symbol="hello"),
+        runtime_config=runtime_config,
     )
 
     assert asdict(python_response) == {
@@ -300,5 +526,51 @@ def test_fetch_symbol_handles_unicode_prefix_in_python_and_typescript(
         "symbol": "hello",
         "symbol_type": "functions",
         "code": 'export function hello(): string { return "hi"; }',
+        "error": None,
+    }
+
+
+def test_servers_use_their_own_runtime_configs_without_global_mutation(tmp_path: Path) -> None:
+    first_root = tmp_path / "first-root"
+    second_root = tmp_path / "second-root"
+    first_root.mkdir()
+    second_root.mkdir()
+    (first_root / "sample.py").write_text("FIRST = 1\n", encoding="utf-8")
+    (second_root / "sample.py").write_text("SECOND = 2\n", encoding="utf-8")
+
+    first_server = create_mcp_server(
+        runtime_config=RuntimeConfig(project_root=first_root),
+    )
+    second_server = create_mcp_server(
+        runtime_config=RuntimeConfig(project_root=second_root),
+    )
+
+    first_tool = asyncio.run(first_server.get_tool("parse_file"))
+    second_tool = asyncio.run(second_server.get_tool("parse_file"))
+    first_result = first_tool.fn(filename="sample.py")
+    second_result = second_tool.fn(filename="sample.py")
+
+    assert asdict(first_result) == {
+        "filename": "sample.py",
+        "language": "python",
+        "available_symbol_types": ("imports", "globals", "classes", "functions"),
+        "sections": {
+            "imports": [],
+            "globals": [{"name": "FIRST"}],
+            "classes": [],
+            "functions": [],
+        },
+        "error": None,
+    }
+    assert asdict(second_result) == {
+        "filename": "sample.py",
+        "language": "python",
+        "available_symbol_types": ("imports", "globals", "classes", "functions"),
+        "sections": {
+            "imports": [],
+            "globals": [{"name": "SECOND"}],
+            "classes": [],
+            "functions": [],
+        },
         "error": None,
     }

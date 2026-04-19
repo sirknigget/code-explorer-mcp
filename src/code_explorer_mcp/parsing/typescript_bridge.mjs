@@ -154,7 +154,13 @@ function parseEnumDeclaration(declaration, sourceFile, symbolSpans) {
   };
 }
 
-function parseClassExpression(expression, sourceFile, symbolSpans, dottedPrefix) {
+function parseClassExpression(
+  expression,
+  sourceFile,
+  symbolSpans,
+  dottedPrefix,
+  nestingDepth = 0,
+) {
   const members = [];
   const methods = [];
   const accessors = [];
@@ -171,10 +177,18 @@ function parseClassExpression(expression, sourceFile, symbolSpans, dottedPrefix)
       const dottedName = `${dottedPrefix}.${memberName}`;
       const initializer = member.getInitializer();
       if (initializer && initializer.getKind() === SyntaxKind.ClassExpression) {
-        innerClasses.push(
-          parseClassExpression(initializer, sourceFile, symbolSpans, dottedName),
-        );
-        addSymbolSpan(symbolSpans, sourceFile, dottedName, "classes", initializer);
+        if (nestingDepth < 1) {
+          innerClasses.push(
+            parseClassExpression(
+              initializer,
+              sourceFile,
+              symbolSpans,
+              dottedName,
+              nestingDepth + 1,
+            ),
+          );
+          addSymbolSpan(symbolSpans, sourceFile, dottedName, "classes", initializer);
+        }
         continue;
       }
 
