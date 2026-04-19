@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from code_explorer_mcp.models import ParseFileRequest, ParseFileResponse, ToolPlaceholderError
-from code_explorer_mcp.runtime_context import get_runtime_root
 from code_explorer_mcp.parser_registry import DEFAULT_PARSER_REGISTRY
 from code_explorer_mcp.parsing.common import select_symbol_types
+from code_explorer_mcp.runtime_config import RuntimeConfig
 from code_explorer_mcp.utils.paths import ProjectPathError, resolve_project_path, to_relative_path
 
 PARSER_REGISTRY = DEFAULT_PARSER_REGISTRY
@@ -14,8 +14,12 @@ SUPPORTED_PARSE_SYMBOL_TYPES: tuple[str, ...] = tuple(
 )
 
 
-def parse_file(request: ParseFileRequest) -> ParseFileResponse:
-    project_root = get_runtime_root()
+def parse_file(
+    request: ParseFileRequest,
+    *,
+    runtime_config: RuntimeConfig,
+) -> ParseFileResponse:
+    project_root = runtime_config.project_root
 
     try:
         file_path = resolve_project_path(project_root, request.filename)
