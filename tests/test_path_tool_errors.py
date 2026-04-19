@@ -4,7 +4,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from code_explorer_mcp.models import FetchSymbolRequest, ParseFileRequest
-from code_explorer_mcp.runtime_context import configure_runtime_root
+from code_explorer_mcp.runtime_config import RuntimeConfig
 from code_explorer_mcp.tool_file_parse import parse_file
 from code_explorer_mcp.tool_symbol_fetch import fetch_symbol
 
@@ -14,9 +14,12 @@ def test_parse_file_rejects_absolute_filename_with_structured_error(tmp_path: Pa
     runtime_root.mkdir()
     fixture_path = runtime_root / "sample.py"
     fixture_path.write_text("VALUE = 1\n", encoding="utf-8")
-    configure_runtime_root(runtime_root)
+    runtime_config = RuntimeConfig.from_project_root(runtime_root)
 
-    response = parse_file(ParseFileRequest(filename=str(fixture_path)))
+    response = parse_file(
+        ParseFileRequest(filename=str(fixture_path)),
+        runtime_config=runtime_config,
+    )
 
     assert asdict(response) == {
         "filename": str(fixture_path),
@@ -39,10 +42,11 @@ def test_fetch_symbol_rejects_normalized_parent_traversal_with_structured_error(
     src_dir.mkdir()
     fixture_path = src_dir / "sample.py"
     fixture_path.write_text("VALUE = 1\n", encoding="utf-8")
-    configure_runtime_root(runtime_root)
+    runtime_config = RuntimeConfig.from_project_root(runtime_root)
 
     response = fetch_symbol(
         FetchSymbolRequest(filename="src/../src/sample.py", symbol="VALUE"),
+        runtime_config=runtime_config,
     )
 
     assert asdict(response) == {
