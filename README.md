@@ -2,6 +2,10 @@
 
 A local FastMCP server that provides deterministic code-exploration primitives for Python and TypeScript repositories.
 
+## Parsing behavior notes
+
+- Python and TypeScript class parsing intentionally expose nested classes only one level deep. A top-level class may include direct `inner_classes`, but classes nested deeper than that are ignored.
+
 ## Setup
 
 1. Sync Python dependencies:
