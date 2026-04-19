@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path, PurePosixPath
-from typing import Iterable
 
 COMMON_IGNORED_DIRECTORIES: frozenset[str] = frozenset(
     {
@@ -92,16 +91,3 @@ def to_relative_path(project_root: Path, path: str | Path) -> str:
     return normalize_relative_path(relative_path)
 
 
-
-def validate_relative_input(project_root: Path, path: str | Path | None) -> str:
-    """Validate a user-facing simple relative path argument and normalize it."""
-    if path is None:
-        return "."
-
-    return normalize_relative_path(path)
-
-
-
-def normalize_relative_paths(paths: Iterable[str | Path]) -> list[str]:
-    """Normalize and sort a collection of relative paths deterministically."""
-    return sorted({normalize_relative_path(path) for path in paths})

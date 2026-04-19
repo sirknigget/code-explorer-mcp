@@ -11,7 +11,6 @@ from code_explorer_mcp.utils.paths import (
     COMMON_IGNORED_DIRECTORIES,
     normalize_relative_path,
     to_relative_path,
-    validate_relative_input,
 )
 from code_explorer_mcp.utils.tree import build_tree, render_tree
 
@@ -42,7 +41,7 @@ def get_project_structure(
     normalized_subfolder = (
         None
         if request.subfolder is None
-        else validate_relative_input(project_root, request.subfolder)
+        else normalize_relative_path(request.subfolder)
     )
     start_path = project_root / normalized_subfolder if normalized_subfolder else project_root
     ignore_rules = load_ignore_rules(project_root)

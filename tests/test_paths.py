@@ -8,10 +8,8 @@ from code_explorer_mcp.utils.paths import (
     COMMON_IGNORED_DIRECTORIES,
     ProjectPathError,
     normalize_relative_path,
-    normalize_relative_paths,
     resolve_project_path,
     to_relative_path,
-    validate_relative_input,
 )
 
 
@@ -63,24 +61,19 @@ def test_resolve_project_path_rejects_absolute_input_inside_root(tmp_path: Path)
 
 
 
-def test_validate_relative_input_rejects_absolute_input_inside_root(tmp_path: Path) -> None:
+def test_normalize_relative_path_rejects_absolute_input_inside_root(tmp_path: Path) -> None:
     nested = tmp_path / "src" / "module.py"
     nested.parent.mkdir(parents=True)
     nested.write_text("pass\n", encoding="utf-8")
 
     with pytest.raises(ProjectPathError):
-        validate_relative_input(tmp_path, str(nested))
+        normalize_relative_path(str(nested))
 
 
 
-def test_validate_relative_input_rejects_parent_traversal_that_normalizes_inside_root(
-    tmp_path: Path,
-) -> None:
-    src_dir = tmp_path / "src"
-    src_dir.mkdir()
-
+def test_normalize_relative_path_rejects_parent_traversal_that_normalizes_inside_root() -> None:
     with pytest.raises(ProjectPathError):
-        validate_relative_input(tmp_path, "src/../src")
+        normalize_relative_path("src/../src")
 
 
 
@@ -93,13 +86,17 @@ def test_to_relative_path_normalizes_filesystem_path(tmp_path: Path) -> None:
 
 
 
-def test_validate_relative_input_returns_project_root_for_none(tmp_path: Path) -> None:
-    assert validate_relative_input(tmp_path, None) == "."
+def test_normalize_relative_path_returns_project_root_for_none_like_inputs() -> None:
+    assert normalize_relative_path("") == "."
+    assert normalize_relative_path(".") == "."
 
 
 
-def test_normalize_relative_paths_sorts_and_deduplicates() -> None:
-    assert normalize_relative_paths(["b.py", "a.py", "./a.py"]) == ["a.py", "b.py"]
+def test_normalize_relative_path_supports_set_based_deduplication() -> None:
+    assert sorted({normalize_relative_path(path) for path in ["b.py", "a.py", "./a.py"]}) == [
+        "a.py",
+        "b.py",
+    ]
 
 
 
