@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import FrozenInstanceError, asdict
+from typing import Any, cast
 from pathlib import Path
 
 import pytest
@@ -21,8 +22,10 @@ TEST_RUNTIME_CONFIG = RuntimeConfig(project_root=Path(__file__).resolve().parent
 
 
 def test_runtime_config_is_immutable() -> None:
+    runtime_config = RuntimeConfig(project_root=Path("/tmp/original"))
+
     with pytest.raises(FrozenInstanceError):
-        TEST_RUNTIME_CONFIG.project_root = Path("/tmp/other")
+        cast(Any, runtime_config).project_root = Path("/tmp/other")
 
 
 def test_parse_file_routes_python_and_typescript_by_extension() -> None:
@@ -547,8 +550,10 @@ def test_servers_use_their_own_runtime_configs_without_global_mutation(tmp_path:
 
     first_tool = asyncio.run(first_server.get_tool("parse_file"))
     second_tool = asyncio.run(second_server.get_tool("parse_file"))
-    first_result = first_tool.fn(filename="sample.py")
-    second_result = second_tool.fn(filename="sample.py")
+    assert first_tool is not None
+    assert second_tool is not None
+    first_result = cast(Any, first_tool).fn(filename="sample.py")
+    second_result = cast(Any, second_tool).fn(filename="sample.py")
 
     assert asdict(first_result) == {
         "filename": "sample.py",
