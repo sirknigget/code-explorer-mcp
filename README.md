@@ -4,8 +4,7 @@ A local FastMCP server that provides deterministic code-exploration primitives f
 
 ## Parsing behavior notes
 
-- Python class parsing intentionally exposes nested classes only one level deep. A top-level class may include direct `inner_classes`, but classes nested deeper than that are ignored.
-- TypeScript class parsing does not share that depth limit. Nested class expressions are preserved recursively in `inner_classes`.
+- Python and TypeScript class parsing intentionally expose nested classes only one level deep. A top-level class may include direct `inner_classes`, but classes nested deeper than that are ignored.
 
 ## Setup
 
