@@ -4,7 +4,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from code_explorer_mcp.models import GetProjectStructureRequest
-from code_explorer_mcp.runtime_context import configure_runtime_root
+from code_explorer_mcp.runtime_config import RuntimeConfig
 from code_explorer_mcp.tool_project_structure import get_project_structure
 
 
@@ -44,9 +44,11 @@ def test_get_project_structure_returns_full_deterministic_tree_and_capabilities(
 ) -> None:
     project_root = make_fixture_repo(tmp_path)
     monkeypatch.chdir(project_root)
-    configure_runtime_root(project_root)
 
-    result = get_project_structure(GetProjectStructureRequest())
+    result = get_project_structure(
+        GetProjectStructureRequest(),
+        runtime_config=RuntimeConfig(project_root=project_root),
+    )
 
     assert asdict(result) == {
         "root": ".",
@@ -89,9 +91,11 @@ def test_get_project_structure_returns_full_deterministic_tree_and_capabilities(
 def test_get_project_structure_filters_to_subfolder(tmp_path: Path, monkeypatch) -> None:
     project_root = make_fixture_repo(tmp_path)
     monkeypatch.chdir(project_root)
-    configure_runtime_root(project_root)
 
-    result = get_project_structure(GetProjectStructureRequest(subfolder="src/pkg"))
+    result = get_project_structure(
+        GetProjectStructureRequest(subfolder="src/pkg"),
+        runtime_config=RuntimeConfig(project_root=project_root),
+    )
 
     assert asdict(result) == {
         "root": ".",
@@ -123,9 +127,11 @@ def test_get_project_structure_filters_by_comma_separated_patterns(
 ) -> None:
     project_root = make_fixture_repo(tmp_path)
     monkeypatch.chdir(project_root)
-    configure_runtime_root(project_root)
 
-    result = get_project_structure(GetProjectStructureRequest(pattern="*.py,*.ts"))
+    result = get_project_structure(
+        GetProjectStructureRequest(pattern="*.py,*.ts"),
+        runtime_config=RuntimeConfig(project_root=project_root),
+    )
 
     assert asdict(result) == {
         "root": ".",
@@ -165,9 +171,11 @@ def test_get_project_structure_supports_folder_style_wildcards(
 ) -> None:
     project_root = make_fixture_repo(tmp_path)
     monkeypatch.chdir(project_root)
-    configure_runtime_root(project_root)
 
-    result = get_project_structure(GetProjectStructureRequest(pattern="src/pkg/*"))
+    result = get_project_structure(
+        GetProjectStructureRequest(pattern="src/pkg/*"),
+        runtime_config=RuntimeConfig(project_root=project_root),
+    )
 
     assert asdict(result) == {
         "root": ".",
@@ -199,9 +207,11 @@ def test_get_project_structure_ignores_common_generated_and_gitignored_paths(
 ) -> None:
     project_root = make_fixture_repo(tmp_path)
     monkeypatch.chdir(project_root)
-    configure_runtime_root(project_root)
 
-    result = get_project_structure(GetProjectStructureRequest(pattern="*.py,*.js,*.tmp,*.ts"))
+    result = get_project_structure(
+        GetProjectStructureRequest(pattern="*.py,*.js,*.tmp,*.ts"),
+        runtime_config=RuntimeConfig(project_root=project_root),
+    )
 
     assert asdict(result) == {
         "root": ".",
@@ -247,10 +257,13 @@ def test_get_project_structure_supports_negated_gitignore_patterns(
         tmp_path / "ignored_dir" / "hidden.py",
         "HIDDEN = True\n",
     )
-    monkeypatch.chdir(tmp_path)
-    configure_runtime_root(tmp_path)
+    project_root = tmp_path
+    monkeypatch.chdir(project_root)
 
-    result = get_project_structure(GetProjectStructureRequest(pattern="*.py,*.ts"))
+    result = get_project_structure(
+        GetProjectStructureRequest(pattern="*.py,*.ts"),
+        runtime_config=RuntimeConfig(project_root=project_root),
+    )
 
     assert asdict(result) == {
         "root": ".",
@@ -281,10 +294,13 @@ def test_get_project_structure_honors_root_anchored_gitignore_patterns(
     write_file(tmp_path / ".gitignore", "/ignored.py\n")
     write_file(tmp_path / "ignored.py", "IGNORED = True\n")
     write_file(tmp_path / "nested" / "ignored.py", "NESTED = True\n")
-    monkeypatch.chdir(tmp_path)
-    configure_runtime_root(tmp_path)
+    project_root = tmp_path
+    monkeypatch.chdir(project_root)
 
-    result = get_project_structure(GetProjectStructureRequest(pattern="*.py"))
+    result = get_project_structure(
+        GetProjectStructureRequest(pattern="*.py"),
+        runtime_config=RuntimeConfig(project_root=project_root),
+    )
 
     assert asdict(result) == {
         "root": ".",

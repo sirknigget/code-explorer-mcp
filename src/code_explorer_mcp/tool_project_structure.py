@@ -5,7 +5,7 @@ from pathlib import Path
 
 from code_explorer_mcp.models import GetProjectStructureRequest, GetProjectStructureResponse
 from code_explorer_mcp.parser_registry import DEFAULT_PARSER_REGISTRY
-from code_explorer_mcp.runtime_context import get_runtime_root
+from code_explorer_mcp.runtime_config import RuntimeConfig
 from code_explorer_mcp.utils.gitignore import GitIgnoreMatcher, load_gitignore_matcher
 from code_explorer_mcp.utils.paths import (
     COMMON_IGNORED_DIRECTORIES,
@@ -18,8 +18,10 @@ from code_explorer_mcp.utils.tree import build_tree, render_tree
 
 def get_project_structure(
     request: GetProjectStructureRequest,
+    *,
+    runtime_config: RuntimeConfig,
 ) -> GetProjectStructureResponse:
-    project_root = get_runtime_root()
+    project_root = runtime_config.project_root
     normalized_subfolder = (
         None
         if request.subfolder is None

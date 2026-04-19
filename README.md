@@ -7,7 +7,7 @@ A local FastMCP server that provides deterministic code-exploration primitives f
 1. Sync Python dependencies:
    - `uv sync`
 2. Install the Node dependencies required by the TypeScript parser runtime:
-   - `uv run code-explorer-mcp-node-setup`
+   - `uv run node-setup`
 
 The setup command checks that `node` and `npm` are installed before running `npm install` inside `src/code_explorer_mcp/parsing`.
 
