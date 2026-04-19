@@ -3,7 +3,6 @@ from __future__ import annotations
 import shutil
 import subprocess
 from importlib import resources
-from pathlib import Path
 
 
 def ensure_node_runtime() -> None:
@@ -12,7 +11,7 @@ def ensure_node_runtime() -> None:
 
     raise RuntimeError(
         "Node.js and npm are required for the TypeScript parser setup. "
-        "Please install Node.js first, then rerun `uv run code-explorer-mcp-node-setup`."
+        "Please install Node.js first, then rerun `uv run node-setup`."
     )
 
 
