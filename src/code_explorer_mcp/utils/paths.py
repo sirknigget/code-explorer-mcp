@@ -25,13 +25,34 @@ class ProjectPathError(ValueError):
     """Raised when a path is invalid for the current project root."""
 
 
+def project_relative_path(project_root: Path, path: str | Path | None = None) -> str:
+    """Return a canonical path relative to project_root."""
+    root = project_root.resolve()
+    if path is None:
+        return "."
 
-def normalize_relative_path(path: str | Path) -> str:
-    """Return a normalized project-relative path using '/' separators.
+    if isinstance(path, Path):
+        resolved = path.resolve()
+        try:
+            relative_path = resolved.relative_to(root)
+        except ValueError as exc:
+            raise ProjectPathError(
+                f"Path must be inside the project root: {path}"
+            ) from exc
+        return _normalize_relative_path(relative_path)
 
-    The returned value never starts with './' and never contains '.' or '..'
-    path segments. The project root itself is represented as '.'.
-    """
+    candidate = (root / _normalize_relative_path(path)).resolve()
+    try:
+        relative_path = candidate.relative_to(root)
+    except ValueError as exc:
+        raise ProjectPathError(
+            f"Path must be a simple relative path from the project root: {path}",
+        ) from exc
+
+    return _normalize_relative_path(relative_path)
+
+
+def _normalize_relative_path(path: str | Path) -> str:
     raw_path = str(path).replace("\\", "/").strip()
     if raw_path in {"", "."}:
         return "."
@@ -53,41 +74,3 @@ def normalize_relative_path(path: str | Path) -> str:
         parts.append(part)
 
     return "/".join(parts) if parts else "."
-
-
-
-def resolve_project_path(project_root: Path, path: str | Path | None = None) -> Path:
-    """Resolve a user-provided simple relative path within project_root."""
-    root = project_root.resolve()
-    if path is None:
-        return root
-
-    relative_path = normalize_relative_path(path)
-    candidate = (root / relative_path).resolve()
-
-    try:
-        candidate.relative_to(root)
-    except ValueError as exc:
-        raise ProjectPathError(
-            f"Path must be a simple relative path from the project root: {path}",
-        ) from exc
-
-    return candidate
-
-
-
-def to_relative_path(project_root: Path, path: str | Path) -> str:
-    """Convert a filesystem path to a normalized project-relative path."""
-    root = project_root.resolve()
-    resolved = Path(path).resolve()
-
-    try:
-        relative_path = resolved.relative_to(root)
-    except ValueError as exc:
-        raise ProjectPathError(
-            f"Path must be inside the project root: {path}",
-        ) from exc
-
-    return normalize_relative_path(relative_path)
-
-
