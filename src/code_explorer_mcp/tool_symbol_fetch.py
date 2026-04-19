@@ -5,8 +5,8 @@ from code_explorer_mcp.models import (
     FetchSymbolResponse,
     ToolPlaceholderError,
 )
+from code_explorer_mcp.parser_registry import DEFAULT_PARSER_REGISTRY
 from code_explorer_mcp.runtime_config import RuntimeConfig
-from code_explorer_mcp.tool_file_parse import PARSER_REGISTRY
 from code_explorer_mcp.utils.paths import ProjectPathError, project_relative_path
 
 SUPPORTED_FETCH_SYMBOL_TYPES: tuple[str, ...] = ()
@@ -22,7 +22,7 @@ def fetch_symbol(
     try:
         relative_filename = project_relative_path(project_root, request.filename)
         file_path = project_root / relative_filename
-        parser = PARSER_REGISTRY.get_for_filename(relative_filename)
+        parser = DEFAULT_PARSER_REGISTRY.get_for_filename(relative_filename)
         source = file_path.read_text(encoding="utf-8")
         match = parser.fetch_symbol(relative_filename, source, request.symbol)
     except ProjectPathError as exc:

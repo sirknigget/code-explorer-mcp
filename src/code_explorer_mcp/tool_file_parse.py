@@ -10,12 +10,15 @@ from code_explorer_mcp.parsing.common import select_symbol_types
 from code_explorer_mcp.runtime_config import RuntimeConfig
 from code_explorer_mcp.utils.paths import ProjectPathError, project_relative_path
 
-PARSER_REGISTRY = DEFAULT_PARSER_REGISTRY
-SUPPORTED_PARSE_SYMBOL_TYPES: tuple[str, ...] = tuple(
-    symbol_type
-    for symbol_types in PARSER_REGISTRY.list_capabilities().values()
-    for symbol_type in symbol_types
-)
+
+def _supported_parse_symbol_types() -> tuple[str, ...]:
+    supported_symbol_types: list[str] = []
+    for parser_symbol_types in DEFAULT_PARSER_REGISTRY.list_capabilities().values():
+        supported_symbol_types.extend(parser_symbol_types)
+    return tuple(supported_symbol_types)
+
+
+SUPPORTED_PARSE_SYMBOL_TYPES: tuple[str, ...] = _supported_parse_symbol_types()
 
 
 def parse_file(
@@ -28,7 +31,7 @@ def parse_file(
     try:
         relative_filename = project_relative_path(project_root, request.filename)
         file_path = project_root / relative_filename
-        parser = PARSER_REGISTRY.get_for_filename(relative_filename)
+        parser = DEFAULT_PARSER_REGISTRY.get_for_filename(relative_filename)
         source = file_path.read_text(encoding="utf-8")
         parsed = parser.parse_file(relative_filename, source)
         requested_symbol_types = select_symbol_types(
