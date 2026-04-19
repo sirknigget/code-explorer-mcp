@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=68"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
 
 [project]
 name = "code-explorer-mcp"
@@ -21,7 +21,7 @@ test = [
 [project.scripts]
 code-explorer-mcp = "code_explorer_mcp.main:main"
 code-explorer-mcp-server = "code_explorer_mcp.main:main"
-code-explorer-mcp-node-setup = "setup_node_runtime:main"
+code-explorer-mcp-node-setup = "code_explorer_mcp.setup_node_runtime:main"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -48,14 +48,20 @@ exclude = [
     "venv",
 ]
 
-[tool.setuptools]
-package-dir = {"" = "src"}
-py-modules = ["main", "setup_node_runtime"]
+[tool.hatch.build.targets.wheel]
+packages = ["src/code_explorer_mcp"]
 
-[tool.setuptools.packages.find]
-where = ["src"]
-include = ["code_explorer_mcp*"]
-namespaces = true
+[tool.hatch.build.targets.wheel.sources]
+"src" = ""
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/tests",
+    "/README.md",
+    "/LICENSE",
+    "/pyproject.toml",
+]
 
 [tool.uv]
 package = true
