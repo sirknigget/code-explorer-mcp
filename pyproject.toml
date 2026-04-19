@@ -31,7 +31,22 @@ asyncio_mode = "auto"
 
 [tool.pyright]
 include = ["src", "tests"]
-exclude = ["tests/fixtures", ".claude"]
+exclude = [
+    ".claude",
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".tox",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "node_modules",
+    "src/code_explorer_mcp/parsing/node_modules",
+    "tests/fixtures",
+    "venv",
+]
 
 [tool.setuptools]
 package-dir = {"" = "src"}
