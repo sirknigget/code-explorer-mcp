@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - Initial setup:
   - `uv sync --extra test`
-  - `uv run code-explorer-mcp-node-setup`
+  - `uv run node-setup`
 - Run the MCP server:
   - `uv run code-explorer-mcp`
 - Run all tests:

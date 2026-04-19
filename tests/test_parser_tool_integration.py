@@ -18,7 +18,7 @@ configure_runtime_root(Path(__file__).resolve().parents[1])
 
 
 def test_parse_file_routes_python_and_typescript_by_extension() -> None:
-    python_response = parse_file(ParseFileRequest(filename=str(PYTHON_FIXTURE)))
+    python_response = parse_file(ParseFileRequest(filename=PYTHON_FILENAME))
     typescript_response = parse_file(
         ParseFileRequest(
             filename=str(TYPESCRIPT_FIXTURE),
@@ -159,6 +159,52 @@ def test_parse_file_reports_invalid_request_for_unknown_symbol_type() -> None:
         code="unsupported_request",
         message="Unknown symbol types requested: decorators",
     )
+
+
+def test_parse_file_and_fetch_symbol_return_mcp_errors_for_file_read_failures(
+    monkeypatch,
+) -> None:
+    original_read_text = Path.read_text
+
+    def raise_read_error(path: Path, *, encoding: str = "utf-8") -> str:
+        if path == PYTHON_FIXTURE:
+            raise OSError("Permission denied while reading fixture")
+        return original_read_text(path, encoding=encoding)
+
+    monkeypatch.setattr(Path, "read_text", raise_read_error)
+
+    parse_response = parse_file(ParseFileRequest(filename=PYTHON_FILENAME))
+    fetch_response = fetch_symbol(
+        FetchSymbolRequest(filename=PYTHON_FILENAME, symbol="MyClass"),
+    )
+
+    assert asdict(parse_response) == {
+        "filename": PYTHON_FILENAME,
+        "language": "unknown",
+        "available_symbol_types": (),
+        "sections": {},
+        "error": {
+            "code": "file_read_error",
+            "message": (
+                "Failed to read file tests/fixtures/python_sample.py: "
+                "Permission denied while reading fixture"
+            ),
+        },
+    }
+    assert asdict(fetch_response) == {
+        "filename": PYTHON_FILENAME,
+        "language": "unknown",
+        "symbol": "MyClass",
+        "symbol_type": None,
+        "code": None,
+        "error": {
+            "code": "file_read_error",
+            "message": (
+                "Failed to read file tests/fixtures/python_sample.py: "
+                "Permission denied while reading fixture"
+            ),
+        },
+    }
 
 
 def test_fetch_symbol_routes_python_and_typescript_by_extension() -> None:
