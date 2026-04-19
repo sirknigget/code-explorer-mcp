@@ -252,6 +252,81 @@ def test_parse_file_exposes_only_one_level_of_python_inner_classes(
     }
 
 
+def test_parse_file_preserves_nested_typescript_inner_classes_recursively(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    runtime_root = tmp_path / "runtime-root"
+    runtime_root.mkdir()
+    fixture_path = runtime_root / "sample.ts"
+    fixture_path.write_text(
+        "export class Outer {\n"
+        "  Inner = class Inner {\n"
+        "    TooDeep = class TooDeep {\n"
+        "      run(): string {\n"
+        '        return "ok";\n'
+        "      }\n"
+        "    };\n"
+        "  };\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    configure_runtime_root(runtime_root)
+    monkeypatch.chdir(tmp_path)
+
+    response = parse_file(ParseFileRequest(filename="sample.ts"))
+
+    assert asdict(response) == {
+        "filename": "sample.ts",
+        "language": "typescript",
+        "available_symbol_types": (
+            "imports",
+            "globals",
+            "classes",
+            "functions",
+            "interfaces",
+            "type_aliases",
+            "enums",
+            "re_exports",
+        ),
+        "sections": {
+            "imports": [],
+            "globals": [],
+            "classes": [
+                {
+                    "name": "Outer",
+                    "members": [],
+                    "methods": [],
+                    "accessors": [],
+                    "inner_classes": [
+                        {
+                            "name": "Inner",
+                            "members": [],
+                            "methods": [],
+                            "accessors": [],
+                            "inner_classes": [
+                                {
+                                    "name": "TooDeep",
+                                    "members": [],
+                                    "methods": [{"name": "run"}],
+                                    "accessors": [],
+                                    "inner_classes": [],
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ],
+            "functions": [],
+            "interfaces": [],
+            "type_aliases": [],
+            "enums": [],
+            "re_exports": [],
+        },
+        "error": None,
+    }
+
+
 def test_parse_and_fetch_use_configured_runtime_root(tmp_path: Path, monkeypatch) -> None:
     runtime_root = tmp_path / "runtime-root"
     runtime_root.mkdir()
