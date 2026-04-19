@@ -27,10 +27,15 @@ class ProjectPathError(ValueError):
 
 
 
-def _simple_relative_parts(path: str | Path) -> tuple[str, ...]:
+def normalize_relative_path(path: str | Path) -> str:
+    """Return a normalized project-relative path using '/' separators.
+
+    The returned value never starts with './' and never contains '.' or '..'
+    path segments. The project root itself is represented as '.'.
+    """
     raw_path = str(path).replace("\\", "/").strip()
     if raw_path in {"", "."}:
-        return ()
+        return "."
 
     pure_path = PurePosixPath(raw_path)
     if pure_path.is_absolute():
@@ -48,17 +53,6 @@ def _simple_relative_parts(path: str | Path) -> tuple[str, ...]:
             )
         parts.append(part)
 
-    return tuple(parts)
-
-
-
-def normalize_relative_path(path: str | Path) -> str:
-    """Return a normalized project-relative path using '/' separators.
-
-    The returned value never starts with './' and never contains '.' or '..'
-    path segments. The project root itself is represented as '.'.
-    """
-    parts = _simple_relative_parts(path)
     return "/".join(parts) if parts else "."
 
 
