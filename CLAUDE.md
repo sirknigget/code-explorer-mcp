@@ -7,8 +7,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Initial setup:
   - `uv sync --extra test`
   - `uv run node-setup`
-- Run the MCP server:
+- Run the MCP server from the repository you want to inspect:
   - `uv run code-explorer-mcp`
+- Run lint:
+  - `uv run ruff check .`
+- Run type checking:
+  - `uv run pyright`
+- Build the package:
+  - `uv build`
 - Run all tests:
   - `uv run pytest`
 - Run one test module:
@@ -23,6 +29,7 @@ This repository is a local FastMCP server that exposes deterministic code-explor
 ### Request flow
 
 - The CLI entrypoint is `src/code_explorer_mcp/main.py`; it only boots the FastMCP server.
+- `src/code_explorer_mcp/main.py` builds `RuntimeConfig` from `Path.cwd()`, so the server treats the launch directory as the project root it will inspect.
 - `src/code_explorer_mcp/server.py` is the composition root. It registers the three MCP tools and translates tool arguments into typed request/response dataclasses from `src/code_explorer_mcp/models.py`.
 - Tool implementation lives in:
   - `src/code_explorer_mcp/tool_project_structure.py`
