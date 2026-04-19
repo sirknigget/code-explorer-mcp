@@ -3,8 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Iterable
 
-from code_explorer_mcp.utils.paths import normalize_relative_path
-
 
 @dataclass(slots=True)
 class TreeNode:
@@ -14,18 +12,16 @@ class TreeNode:
     files: list[str] = field(default_factory=list)
 
 
-
 def build_tree(relative_paths: Iterable[str]) -> TreeNode:
     """Build a nested tree from project-relative file and directory paths."""
     root = TreeNode()
 
     for raw_path in relative_paths:
-        normalized = normalize_relative_path(raw_path)
-        if normalized == ".":
+        if raw_path == ".":
             continue
 
         is_directory = raw_path.endswith("/")
-        parts = normalized.split("/")
+        parts = raw_path.rstrip("/").split("/")
         node = root
 
         for part in parts[:-1]:
@@ -42,13 +38,11 @@ def build_tree(relative_paths: Iterable[str]) -> TreeNode:
     return root
 
 
-
 def render_tree(tree: TreeNode) -> str:
     """Render a readable project structure string from a TreeNode."""
     lines: list[str] = []
     _render_node(tree, depth=0, lines=lines)
     return "\n".join(lines)
-
 
 
 def _render_node(node: TreeNode, *, depth: int, lines: list[str]) -> None:

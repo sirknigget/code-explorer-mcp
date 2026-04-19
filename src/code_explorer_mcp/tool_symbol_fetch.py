@@ -7,7 +7,7 @@ from code_explorer_mcp.models import (
 )
 from code_explorer_mcp.runtime_config import RuntimeConfig
 from code_explorer_mcp.tool_file_parse import PARSER_REGISTRY
-from code_explorer_mcp.utils.paths import ProjectPathError, resolve_project_path, to_relative_path
+from code_explorer_mcp.utils.paths import ProjectPathError, project_relative_path
 
 SUPPORTED_FETCH_SYMBOL_TYPES: tuple[str, ...] = ()
 
@@ -20,8 +20,8 @@ def fetch_symbol(
     project_root = runtime_config.project_root
 
     try:
-        file_path = resolve_project_path(project_root, request.filename)
-        relative_filename = to_relative_path(project_root, file_path)
+        relative_filename = project_relative_path(project_root, request.filename)
+        file_path = project_root / relative_filename
         parser = PARSER_REGISTRY.get_for_filename(relative_filename)
         source = file_path.read_text(encoding="utf-8")
         match = parser.fetch_symbol(relative_filename, source, request.symbol)

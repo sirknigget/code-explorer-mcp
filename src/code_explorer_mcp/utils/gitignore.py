@@ -4,24 +4,20 @@ from pathlib import Path
 
 from pathspec import PathSpec
 
-from code_explorer_mcp.utils.paths import normalize_relative_path
-
 
 class GitIgnoreMatcher:
     def __init__(self, spec: PathSpec) -> None:
         self._spec = spec
 
     def matches_directory(self, relative_path: str) -> bool:
-        normalized = normalize_relative_path(relative_path)
-        if normalized == ".":
+        if relative_path == ".":
             return False
-        return self._spec.match_file(f"{normalized}/")
+        return self._spec.match_file(f"{relative_path}/")
 
     def matches_file(self, relative_path: str) -> bool:
-        normalized = normalize_relative_path(relative_path)
-        if normalized == ".":
+        if relative_path == ".":
             return False
-        return self._spec.match_file(normalized)
+        return self._spec.match_file(relative_path)
 
 
 EMPTY_GITIGNORE_MATCHER = GitIgnoreMatcher(PathSpec.from_lines("gitwildmatch", ()))
