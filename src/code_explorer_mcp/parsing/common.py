@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
 
 @dataclass(frozen=True, slots=True)
@@ -129,3 +129,42 @@ def make_parsed_file(
         sections=ordered_sections,
         symbol_spans=dict(symbol_spans or {}),
     )
+
+
+def slice_source_span(
+    source: str,
+    span: SourceSpan,
+    *,
+    column_to_character_offset: Callable[[str, int], int],
+) -> str:
+    """Slice source text for a span using parser-specific column units."""
+    lines = source.splitlines(keepends=True)
+    start_offset = offset_for_position(
+        lines,
+        span.start,
+        column_to_character_offset=column_to_character_offset,
+    )
+    end_offset = offset_for_position(
+        lines,
+        span.end,
+        column_to_character_offset=column_to_character_offset,
+    )
+    return source[start_offset:end_offset]
+
+
+def offset_for_position(
+    lines: list[str],
+    position: SourcePosition,
+    *,
+    column_to_character_offset: Callable[[str, int], int],
+) -> int:
+    """Resolve a line/column pair to a character offset in the full source."""
+    if position.line < 1:
+        raise ValueError(f"Invalid line number: {position.line}")
+    if position.line > len(lines):
+        return sum(len(line) for line in lines)
+
+    line_start_offset = sum(len(line) for line in lines[: position.line - 1])
+    line_text = lines[position.line - 1]
+    column_offset = column_to_character_offset(line_text, position.column)
+    return line_start_offset + column_offset

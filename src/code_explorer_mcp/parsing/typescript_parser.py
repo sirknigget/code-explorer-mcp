@@ -14,6 +14,7 @@ from code_explorer_mcp.parsing.common import (
     SymbolMatch,
     SymbolSpan,
     make_parsed_file,
+    slice_source_span,
 )
 
 TYPESCRIPT_SYMBOL_TYPES: tuple[str, ...] = (
@@ -130,25 +131,24 @@ class TypeScriptParser(Parser):
         )
 
     def _slice_source(self, source: str, span: SourceSpan) -> str:
-        lines = source.splitlines(keepends=True)
-        start_offset = self._offset_for_position(lines, span.start)
-        end_offset = self._offset_for_position(lines, span.end)
-        return source[start_offset:end_offset]
+        return slice_source_span(
+            source,
+            span,
+            column_to_character_offset=self._character_column_for_utf16_offset,
+        )
 
-    def _offset_for_position(
-        self,
-        lines: list[str],
-        position: SourcePosition,
-    ) -> int:
-        if position.line < 1:
-            raise ValueError(f"Invalid line number: {position.line}")
-        if position.line > len(lines):
-            return sum(len(line) for line in lines)
+    def _character_column_for_utf16_offset(self, line_text: str, utf16_offset: int) -> int:
+        if utf16_offset < 0:
+            raise ValueError(f"Invalid column: {utf16_offset}")
 
-        offset = sum(len(line) for line in lines[: position.line - 1])
-        line_text = lines[position.line - 1]
-        if position.column < 0 or position.column > len(line_text):
-            raise ValueError(
-                f"Invalid column {position.column} for line {position.line}",
-            )
-        return offset + position.column
+        consumed_units = 0
+        for index, character in enumerate(line_text):
+            if consumed_units == utf16_offset:
+                return index
+            consumed_units += len(character.encode("utf-16-le")) // 2
+            if consumed_units > utf16_offset:
+                raise ValueError(f"Invalid column: {utf16_offset}")
+
+        if consumed_units == utf16_offset:
+            return len(line_text)
+        raise ValueError(f"Invalid column: {utf16_offset}")

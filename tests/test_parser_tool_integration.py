@@ -118,8 +118,18 @@ def test_parse_file_routes_python_and_typescript_by_extension() -> None:
         ),
         "sections": {
             "imports": [
-                {"module": "./types", "default": "Thing", "namespace": None, "named": ["Helper"]},
-                {"module": "./utils", "default": None, "namespace": "Utils", "named": []},
+                {
+                    "module": "./types",
+                    "default": "Thing",
+                    "namespace": None,
+                    "named": ["Helper"],
+                },
+                {
+                    "module": "./utils",
+                    "default": None,
+                    "namespace": "Utils",
+                    "named": [],
+                },
             ],
             "globals": [
                 {"name": "TOP_LEVEL_CONST", "declaration_kind": "const"},
@@ -470,6 +480,52 @@ def test_parse_and_fetch_use_supplied_runtime_config_instead_of_process_cwd(
         "symbol": "VALUE",
         "symbol_type": "globals",
         "code": "VALUE = 1",
+        "error": None,
+    }
+
+
+def test_fetch_symbol_handles_unicode_prefix_in_python_and_typescript(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    runtime_root = tmp_path / "runtime-root"
+    runtime_root.mkdir()
+    python_path = runtime_root / "unicode_sample.py"
+    typescript_path = runtime_root / "unicode_sample.ts"
+    python_path.write_text(
+        'EMOJI = "😀"; VALUE = 1\n',
+        encoding="utf-8",
+    )
+    typescript_path.write_text(
+        'const emoji = "😀"; export function hello(): string { return "hi"; }\n',
+        encoding="utf-8",
+    )
+    runtime_config = RuntimeConfig(project_root=runtime_root)
+    monkeypatch.chdir(tmp_path)
+
+    python_response = fetch_symbol(
+        FetchSymbolRequest(filename="unicode_sample.py", symbol="VALUE"),
+        runtime_config=runtime_config,
+    )
+    typescript_response = fetch_symbol(
+        FetchSymbolRequest(filename="unicode_sample.ts", symbol="hello"),
+        runtime_config=runtime_config,
+    )
+
+    assert asdict(python_response) == {
+        "filename": "unicode_sample.py",
+        "language": "python",
+        "symbol": "VALUE",
+        "symbol_type": "globals",
+        "code": "VALUE = 1",
+        "error": None,
+    }
+    assert asdict(typescript_response) == {
+        "filename": "unicode_sample.ts",
+        "language": "typescript",
+        "symbol": "hello",
+        "symbol_type": "functions",
+        "code": 'export function hello(): string { return "hi"; }',
         "error": None,
     }
 
