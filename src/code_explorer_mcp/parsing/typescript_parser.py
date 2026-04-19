@@ -58,7 +58,9 @@ class TypeScriptParser(Parser):
             symbol_spans=self._load_symbol_spans(payload.get("symbol_spans", {})),
         )
 
-    def fetch_symbol(self, filename: str, source: str, symbol: str) -> SymbolMatch | None:
+    def fetch_symbol(
+        self, filename: str, source: str, symbol: str
+    ) -> SymbolMatch | None:
         parsed = self.parse_file(filename=filename, source=source)
         symbol_span = parsed.symbol_spans.get(symbol)
         if symbol_span is None:
@@ -83,19 +85,21 @@ class TypeScriptParser(Parser):
             cwd=NODE_MODULES.parent,
         )
         if not completed.stdout:
-            raise RuntimeError(completed.stderr or "TypeScript bridge produced no output")
+            raise RuntimeError(
+                completed.stderr or "TypeScript bridge produced no output"
+            )
         return json.loads(completed.stdout)
 
     def _ensure_ready(self) -> None:
         if not shutil.which("node"):
             raise RuntimeError(
                 "Node.js is required for TypeScript parsing. "
-                "Install Node.js, run `uv run code-explorer-mcp-node-setup`, then rerun the parser."
+                "Install Node.js, run `uv run node-setup`, then rerun the parser."
             )
         if not NODE_MODULES.exists():
             raise RuntimeError(
                 "TypeScript parser dependencies are not installed. "
-                "Run `uv run code-explorer-mcp-node-setup` after `uv sync`, then rerun the parser."
+                "Run `uv run node-setup` after `uv sync`, then rerun the parser."
             )
 
     def _load_symbol_spans(

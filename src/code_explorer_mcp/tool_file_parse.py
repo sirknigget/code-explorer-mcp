@@ -41,6 +41,16 @@ def parse_file(
                 message=str(exc),
             ),
         )
+    except OSError as exc:
+        return ParseFileResponse(
+            filename=request.filename,
+            language="unknown",
+            available_symbol_types=(),
+            error=ToolPlaceholderError(
+                code="file_read_error",
+                message=f"Failed to read file {request.filename}: {exc}",
+            ),
+        )
     except ValueError as exc:
         return ParseFileResponse(
             filename=request.filename,

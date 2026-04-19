@@ -177,6 +177,56 @@ def test_parse_file_reports_invalid_request_for_unknown_symbol_type() -> None:
     )
 
 
+def test_parse_file_and_fetch_symbol_return_mcp_errors_for_file_read_failures(
+    monkeypatch,
+) -> None:
+    original_read_text = Path.read_text
+
+    def raise_read_error(path: Path, *, encoding: str = "utf-8") -> str:
+        if path == PYTHON_FIXTURE:
+            raise OSError("Permission denied while reading fixture")
+        return original_read_text(path, encoding=encoding)
+
+    monkeypatch.setattr(Path, "read_text", raise_read_error)
+
+    parse_response = parse_file(
+        ParseFileRequest(filename=PYTHON_FILENAME),
+        runtime_config=TEST_RUNTIME_CONFIG,
+    )
+    fetch_response = fetch_symbol(
+        FetchSymbolRequest(filename=PYTHON_FILENAME, symbol="MyClass"),
+        runtime_config=TEST_RUNTIME_CONFIG,
+    )
+
+    assert asdict(parse_response) == {
+        "filename": PYTHON_FILENAME,
+        "language": "unknown",
+        "available_symbol_types": (),
+        "sections": {},
+        "error": {
+            "code": "file_read_error",
+            "message": (
+                "Failed to read file tests/fixtures/python_sample.py: "
+                "Permission denied while reading fixture"
+            ),
+        },
+    }
+    assert asdict(fetch_response) == {
+        "filename": PYTHON_FILENAME,
+        "language": "unknown",
+        "symbol": "MyClass",
+        "symbol_type": None,
+        "code": None,
+        "error": {
+            "code": "file_read_error",
+            "message": (
+                "Failed to read file tests/fixtures/python_sample.py: "
+                "Permission denied while reading fixture"
+            ),
+        },
+    }
+
+
 def test_fetch_symbol_routes_python_and_typescript_by_extension() -> None:
     python_response = fetch_symbol(
         FetchSymbolRequest(filename=PYTHON_FILENAME, symbol="MyClass.my_async_method"),
