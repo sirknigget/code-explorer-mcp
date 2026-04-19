@@ -242,3 +242,74 @@ def test_get_project_structure_ignores_common_generated_and_gitignored_paths(
         },
         "error": None,
     }
+
+
+def test_get_project_structure_supports_negated_gitignore_patterns(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    write_file(
+        tmp_path / ".gitignore",
+        "ignored_dir/*\n!ignored_dir/kept.ts\n",
+    )
+    write_file(tmp_path / "ignored_dir" / "kept.ts", "export const kept = true;\n")
+    write_file(
+        tmp_path / "ignored_dir" / "hidden.py",
+        "HIDDEN = True\n",
+    )
+    project_root = tmp_path
+    monkeypatch.chdir(project_root)
+
+    result = get_project_structure(
+        GetProjectStructureRequest(pattern="*.py,*.ts"),
+        runtime_config=RuntimeConfig(project_root=project_root),
+    )
+
+    assert asdict(result) == {
+        "root": ".",
+        "subfolder": None,
+        "pattern": "*.py,*.ts",
+        "structure": "ignored_dir/\n  kept.ts",
+        "languages_present": ("typescript",),
+        "available_symbol_types_by_language": {
+            "typescript": (
+                "imports",
+                "globals",
+                "classes",
+                "functions",
+                "interfaces",
+                "type_aliases",
+                "enums",
+                "re_exports",
+            ),
+        },
+        "error": None,
+    }
+
+
+def test_get_project_structure_honors_root_anchored_gitignore_patterns(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    write_file(tmp_path / ".gitignore", "/ignored.py\n")
+    write_file(tmp_path / "ignored.py", "IGNORED = True\n")
+    write_file(tmp_path / "nested" / "ignored.py", "NESTED = True\n")
+    project_root = tmp_path
+    monkeypatch.chdir(project_root)
+
+    result = get_project_structure(
+        GetProjectStructureRequest(pattern="*.py"),
+        runtime_config=RuntimeConfig(project_root=project_root),
+    )
+
+    assert asdict(result) == {
+        "root": ".",
+        "subfolder": None,
+        "pattern": "*.py",
+        "structure": "nested/\n  ignored.py",
+        "languages_present": ("python",),
+        "available_symbol_types_by_language": {
+            "python": ("imports", "globals", "classes", "functions"),
+        },
+        "error": None,
+    }
