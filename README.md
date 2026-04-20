@@ -16,6 +16,8 @@ Install the server as a tool:
 
 - `uv tool install code-explorer-mcp`
 
+This makes `code-explorer-mcp` and `code-explorer-node-setup` available as global commands if your uv tool bin directory is on `PATH`.
+
 If you prefer `pipx`:
 
 - `pipx install code-explorer-mcp`
@@ -26,9 +28,9 @@ Python parsing works after install. TypeScript parsing also requires Node.js and
 
 1. Install Node.js and npm.
 2. Run:
-   - `node-setup`
+   - `code-explorer-node-setup`
 
-`node-setup` checks that `node` and `npm` are available, then installs the TypeScript parser runtime inside the installed package.
+`code-explorer-node-setup` checks that `node` and `npm` are available, then installs the TypeScript parser runtime inside the installed package.
 
 ## Run the server
 
@@ -50,7 +52,7 @@ Example stdio configuration:
 }
 ```
 
-If you installed with `pipx`, the command stays `code-explorer-mcp`.
+If you installed with `pipx`, the command stays `code-explorer-mcp` and the setup command is `code-explorer-node-setup`.
 
 ## Install from source
 
@@ -59,6 +61,6 @@ For local development or GitHub installs:
 1. Sync Python dependencies:
    - `uv sync`
 2. Install the Node dependencies required by the TypeScript parser runtime:
-   - `uv run node-setup`
+   - `uv run code-explorer-node-setup`
 3. Run the server from the repository you want to inspect:
    - `uv run code-explorer-mcp`

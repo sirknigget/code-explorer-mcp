@@ -95,12 +95,12 @@ class TypeScriptParser(Parser):
         if not shutil.which("node"):
             raise RuntimeError(
                 "Node.js is required for TypeScript parsing. "
-                "Install Node.js, run `node-setup`, then rerun the parser."
+                "Install Node.js, run `code-explorer-node-setup`, then rerun the parser."
             )
         if not NODE_MODULES.exists():
             raise RuntimeError(
                 "TypeScript parser dependencies are not installed. "
-                "Run `node-setup`, then rerun the parser."
+                "Run `code-explorer-node-setup`, then rerun the parser."
             )
 
     def _load_symbol_spans(

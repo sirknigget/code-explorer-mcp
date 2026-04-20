@@ -26,5 +26,5 @@ You can also run the workflow manually from the GitHub Actions tab with `workflo
 
 ## Notes
 
-- TypeScript parsing still requires users to install Node.js and run `node-setup` after package installation.
+- TypeScript parsing still requires users to install Node.js and run `code-explorer-node-setup` after package installation.
 - The workflow uses PyPI trusted publishing via GitHub's OIDC token, so no long-lived PyPI API token is needed in GitHub secrets.
