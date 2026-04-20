@@ -61,6 +61,9 @@ include = [
     "/README.md",
     "/LICENSE",
     "/pyproject.toml",
+    "/src/code_explorer_mcp/parsing/package.json",
+    "/src/code_explorer_mcp/parsing/package-lock.json",
+    "/src/code_explorer_mcp/parsing/typescript_bridge.mjs",
 ]
 
 [tool.uv]
