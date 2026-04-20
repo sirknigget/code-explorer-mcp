@@ -11,7 +11,7 @@ def ensure_node_runtime() -> None:
 
     raise RuntimeError(
         "Node.js and npm are required for the TypeScript parser setup. "
-        "Please install Node.js first, then rerun `uv run node-setup`."
+        "Please install Node.js first, then rerun `node-setup`."
     )
 
 

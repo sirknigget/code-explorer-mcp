@@ -95,12 +95,12 @@ class TypeScriptParser(Parser):
         if not shutil.which("node"):
             raise RuntimeError(
                 "Node.js is required for TypeScript parsing. "
-                "Install Node.js, run `uv run node-setup`, then rerun the parser."
+                "Install Node.js, run `node-setup`, then rerun the parser."
             )
         if not NODE_MODULES.exists():
             raise RuntimeError(
                 "TypeScript parser dependencies are not installed. "
-                "Run `uv run node-setup` after `uv sync`, then rerun the parser."
+                "Run `node-setup`, then rerun the parser."
             )
 
     def _load_symbol_spans(
@@ -137,7 +137,9 @@ class TypeScriptParser(Parser):
             column_to_character_offset=self._character_column_for_utf16_offset,
         )
 
-    def _character_column_for_utf16_offset(self, line_text: str, utf16_offset: int) -> int:
+    def _character_column_for_utf16_offset(
+        self, line_text: str, utf16_offset: int
+    ) -> int:
         if utf16_offset < 0:
             raise ValueError(f"Invalid column: {utf16_offset}")
 

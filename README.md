@@ -6,25 +6,51 @@ A local FastMCP server that provides deterministic code-exploration primitives f
 
 - Python and TypeScript class parsing intentionally expose nested classes only one level deep. A top-level class may include direct `inner_classes`, but classes nested deeper than that are ignored.
 
-## Install
+## Client setup
 
-### Install with uv
+This server inspects the current working directory, so your MCP client must launch it from the repository you want to explore.
+
+### Recommended install
+
+Install the server as a tool:
 
 - `uv tool install code-explorer-mcp`
 
-### Install with pipx
+If you prefer `pipx`:
 
 - `pipx install code-explorer-mcp`
 
 ### TypeScript parser setup
 
-Python parsing works after install, but TypeScript parsing requires Node.js and npm plus one extra bootstrap step:
+Python parsing works after install. TypeScript parsing also requires Node.js and npm plus one bootstrap step:
 
 1. Install Node.js and npm.
 2. Run:
    - `node-setup`
 
-`node-setup` checks that `node` and `npm` are available, then runs `npm install` inside the installed `code_explorer_mcp.parsing` package data.
+`node-setup` checks that `node` and `npm` are available, then installs the TypeScript parser runtime inside the installed package.
+
+## Run the server
+
+- Installed package: `code-explorer-mcp`
+- Local checkout: `uv run code-explorer-mcp`
+
+## Example MCP client config
+
+Example stdio configuration:
+
+```json
+{
+  "mcpServers": {
+    "code-explorer": {
+      "command": "code-explorer-mcp",
+      "cwd": "/absolute/path/to/the/repository-you-want-to-inspect"
+    }
+  }
+}
+```
+
+If you installed with `pipx`, the command stays `code-explorer-mcp`.
 
 ## Install from source
 
@@ -34,8 +60,5 @@ For local development or GitHub installs:
    - `uv sync`
 2. Install the Node dependencies required by the TypeScript parser runtime:
    - `uv run node-setup`
-
-## Run the server
-
-- Installed package: `code-explorer-mcp`
-- Local checkout: `uv run code-explorer-mcp`
+3. Run the server from the repository you want to inspect:
+   - `uv run code-explorer-mcp`
