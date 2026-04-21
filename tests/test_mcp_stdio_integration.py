@@ -87,18 +87,31 @@ async def test_stdio_client_lists_tools_and_calls_each_tool(
                 "pattern": "*.py,*.ts",
             },
         )
-        parse_file_result = await client.call_tool(
+        python_parse_result = await client.call_tool(
             "parse_file",
             {
                 "filename": "tests/fixtures/python_sample.py",
                 "content": {"functions": True, "classes": True},
             },
         )
-        fetch_symbol_result = await client.call_tool(
+        typescript_parse_result = await client.call_tool(
+            "parse_file",
+            {
+                "filename": "tests/fixtures/typescript_sample.ts",
+            },
+        )
+        typescript_fetch_result = await client.call_tool(
             "fetch_symbol",
             {
                 "filename": "tests/fixtures/typescript_sample.ts",
                 "symbol": "MyInterface",
+            },
+        )
+        python_fetch_result = await client.call_tool(
+            "fetch_symbol",
+            {
+                "filename": "tests/fixtures/python_sample.py",
+                "symbol": "MyClass.my_async_method",
             },
         )
 
@@ -129,11 +142,31 @@ async def test_stdio_client_lists_tools_and_calls_each_tool(
             ],
         },
     }
-    assert parse_file_result.data == {
+    assert python_parse_result.data == {
         "classes": ["MyClass", "MyClass.InnerClass"],
         "functions": ["top_level_function"],
     }
-    assert fetch_symbol_result.data == {
+    assert typescript_parse_result.data == {
+        "imports": [
+            'import Thing, { Helper } from "./types"',
+            'import * as Utils from "./utils"',
+        ],
+        "globals": ["TOP_LEVEL_CONST", "arrowFunction", "mutableValue"],
+        "classes": ["MyClass", "MyClass.InnerClass"],
+        "functions": ["namedFunction", "arrowFunction"],
+        "interfaces": ["MyInterface"],
+        "type_aliases": ["MyType"],
+        "enums": ["MyEnum"],
+        "re_exports": [
+            'export { SharedThing } from "./shared"',
+            'export * from "./everything"',
+        ],
+    }
+    assert typescript_fetch_result.data == {
         "symbol_type": "interfaces",
         "code": "export interface MyInterface {\n  id: string;\n}",
+    }
+    assert python_fetch_result.data == {
+        "symbol_type": "classes",
+        "code": "async def my_async_method(self) -> str:\n        return self.label",
     }
