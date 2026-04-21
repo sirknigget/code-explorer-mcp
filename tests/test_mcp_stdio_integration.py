@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import shutil
-from dataclasses import asdict
 from pathlib import Path
 
 import pytest
@@ -103,10 +102,7 @@ async def test_stdio_client_lists_tools_and_calls_each_tool(
             },
         )
 
-    assert asdict(project_structure.data) == {
-        "root": ".",
-        "subfolder": None,
-        "pattern": "*.py,*.ts",
+    assert project_structure.data == {
         "structure": (
             "src/\n"
             "  pkg/\n"
@@ -119,8 +115,7 @@ async def test_stdio_client_lists_tools_and_calls_each_tool(
             "    typescript_sample.ts\n"
             "  test_app.py"
         ),
-        "languages_present": ["python", "typescript"],
-        "available_symbol_types_by_language": {
+        "languages": {
             "python": ["imports", "globals", "classes", "functions"],
             "typescript": [
                 "imports",
@@ -133,43 +128,12 @@ async def test_stdio_client_lists_tools_and_calls_each_tool(
                 "re_exports",
             ],
         },
-        "error": None,
     }
-    assert asdict(parse_file_result.data) == {
-        "filename": "tests/fixtures/python_sample.py",
-        "language": "python",
-        "available_symbol_types": ["imports", "globals", "classes", "functions"],
-        "sections": {
-            "classes": [
-                {
-                    "name": "MyClass",
-                    "members": [
-                        {"name": "count"},
-                        {"name": "label"},
-                    ],
-                    "methods": [
-                        {"name": "my_method"},
-                        {"name": "my_async_method"},
-                    ],
-                    "inner_classes": [
-                        {
-                            "name": "InnerClass",
-                            "members": [{"name": "inner_value"}],
-                            "methods": [],
-                            "inner_classes": [],
-                        }
-                    ],
-                }
-            ],
-            "functions": [{"name": "top_level_function"}],
-        },
-        "error": None,
+    assert parse_file_result.data == {
+        "classes": ["MyClass", "MyClass.InnerClass"],
+        "functions": ["top_level_function"],
     }
-    assert asdict(fetch_symbol_result.data) == {
-        "filename": "tests/fixtures/typescript_sample.ts",
-        "language": "typescript",
-        "symbol": "MyInterface",
+    assert fetch_symbol_result.data == {
         "symbol_type": "interfaces",
         "code": "export interface MyInterface {\n  id: string;\n}",
-        "error": None,
     }

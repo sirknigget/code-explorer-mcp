@@ -570,27 +570,5 @@ def test_servers_use_their_own_runtime_configs_without_global_mutation(
     first_result = cast(Any, first_tool).fn(filename="sample.py")
     second_result = cast(Any, second_tool).fn(filename="sample.py")
 
-    assert asdict(first_result) == {
-        "filename": "sample.py",
-        "language": "python",
-        "available_symbol_types": ("imports", "globals", "classes", "functions"),
-        "sections": {
-            "imports": [],
-            "globals": [{"name": "FIRST"}],
-            "classes": [],
-            "functions": [],
-        },
-        "error": None,
-    }
-    assert asdict(second_result) == {
-        "filename": "sample.py",
-        "language": "python",
-        "available_symbol_types": ("imports", "globals", "classes", "functions"),
-        "sections": {
-            "imports": [],
-            "globals": [{"name": "SECOND"}],
-            "classes": [],
-            "functions": [],
-        },
-        "error": None,
-    }
+    assert first_result == {"globals": ["FIRST"]}
+    assert second_result == {"globals": ["SECOND"]}
