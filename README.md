@@ -8,7 +8,7 @@ A local FastMCP server that provides deterministic code-exploration primitives f
 
 ## Client setup
 
-This server inspects the current working directory, so your MCP client must launch it from the repository you want to explore.
+This server inspects the current working directory by default, or an explicit path when you pass `--path`.
 
 ### Recommended install
 
@@ -35,14 +35,16 @@ Python parsing works after install. TypeScript parsing also requires Node.js and
 ## Run the server
 
 - Installed package: `code-explorer-mcp`
+- Installed package with explicit target repo: `code-explorer-mcp --path /path/to/repo`
 - Local checkout: `uv run code-explorer-mcp`
+- Local checkout with explicit target repo: `uv run code-explorer-mcp --path /path/to/repo`
 
 ## Example MCP client config
 
 Claude Code:
 
 ```bash
-claude mcp add --transport stdio code-explorer -- code-explorer-mcp
+claude mcp add --transport stdio code-explorer -- code-explorer-mcp --path /path/to/repo
 ```
 
 Generic stdio configuration:
@@ -51,7 +53,8 @@ Generic stdio configuration:
 {
   "mcpServers": {
     "code-explorer": {
-      "command": "code-explorer-mcp"
+      "command": "code-explorer-mcp",
+      "args": ["--path", "/path/to/repo"]
     }
   }
 }
@@ -69,3 +72,4 @@ For local development or GitHub installs:
    - `uv run code-explorer-node-setup`
 3. Run the server from the repository you want to inspect:
    - `uv run code-explorer-mcp`
+   - or from anywhere with an explicit target: `uv run code-explorer-mcp --path /path/to/repo`
