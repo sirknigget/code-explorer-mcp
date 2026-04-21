@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated, Any
+from typing import Annotated
 
 from fastmcp import FastMCP
 
@@ -10,6 +10,9 @@ from code_explorer_mcp.models import (
     ParseFileRequest,
 )
 from code_explorer_mcp.presentation import (
+    get_fetch_symbol_payload,
+    get_parse_file_payload,
+    get_project_structure_payload,
     present_fetch_symbol,
     present_parse_file,
     present_project_structure,
@@ -46,10 +49,11 @@ def create_mcp_server(*, runtime_config: RuntimeConfig) -> FastMCP:
                 "all files."
             ),
         ] = None,
-    ) -> dict[str, Any]:
+    ) -> dict[str, object]:
         request = GetProjectStructureRequest(subfolder=subfolder, pattern=pattern)
         response = get_project_structure(request, runtime_config=runtime_config)
-        return present_project_structure(response)
+        mcp_response = present_project_structure(response)
+        return get_project_structure_payload(mcp_response)
 
     @mcp.tool(
         name="parse_file",
@@ -74,10 +78,11 @@ def create_mcp_server(*, runtime_config: RuntimeConfig) -> FastMCP:
                 "all available sections. Unknown section names return an error."
             ),
         ] = None,
-    ) -> dict[str, Any]:
+    ) -> dict[str, object]:
         request = ParseFileRequest(filename=filename, content=content)
         response = parse_file(request, runtime_config=runtime_config)
-        return present_parse_file(response)
+        mcp_response = present_parse_file(response)
+        return get_parse_file_payload(mcp_response)
 
     @mcp.tool(
         name="fetch_symbol",
@@ -102,9 +107,10 @@ def create_mcp_server(*, runtime_config: RuntimeConfig) -> FastMCP:
                 "If the symbol is not present, the tool returns an error."
             ),
         ],
-    ) -> dict[str, Any]:
+    ) -> dict[str, object]:
         request = FetchSymbolRequest(filename=filename, symbol=symbol)
         response = fetch_symbol(request, runtime_config=runtime_config)
-        return present_fetch_symbol(response)
+        mcp_response = present_fetch_symbol(response)
+        return get_fetch_symbol_payload(mcp_response)
 
     return mcp

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from code_explorer_mcp.models import (
     ParseFileRequest,
-    ParseFileResponse,
+    ParseFileToolResponse,
     ToolPlaceholderError,
 )
 from code_explorer_mcp.parser_registry import DEFAULT_PARSER_REGISTRY
@@ -25,7 +25,7 @@ def parse_file(
     request: ParseFileRequest,
     *,
     runtime_config: RuntimeConfig,
-) -> ParseFileResponse:
+) -> ParseFileToolResponse:
     project_root = runtime_config.project_root
 
     try:
@@ -39,7 +39,7 @@ def parse_file(
             request.content,
         )
     except ProjectPathError as exc:
-        return ParseFileResponse(
+        return ParseFileToolResponse(
             filename=request.filename,
             language="unknown",
             available_symbol_types=(),
@@ -49,7 +49,7 @@ def parse_file(
             ),
         )
     except OSError as exc:
-        return ParseFileResponse(
+        return ParseFileToolResponse(
             filename=request.filename,
             language="unknown",
             available_symbol_types=(),
@@ -59,7 +59,7 @@ def parse_file(
             ),
         )
     except ValueError as exc:
-        return ParseFileResponse(
+        return ParseFileToolResponse(
             filename=request.filename,
             language="unknown",
             available_symbol_types=(),
@@ -74,7 +74,7 @@ def parse_file(
         for symbol_type in requested_symbol_types
         if symbol_type in parsed.sections
     }
-    return ParseFileResponse(
+    return ParseFileToolResponse(
         filename=parsed.filename,
         language=parsed.language,
         available_symbol_types=tuple(parsed.available_symbol_types),

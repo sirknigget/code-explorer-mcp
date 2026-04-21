@@ -1,12 +1,18 @@
 from __future__ import annotations
 
 from code_explorer_mcp.models import (
-    FetchSymbolResponse,
-    GetProjectStructureResponse,
-    ParseFileResponse,
+    FetchSymbolMCPResponse,
+    FetchSymbolToolResponse,
+    GetProjectStructureMCPResponse,
+    GetProjectStructureToolResponse,
+    ParseFileMCPResponse,
+    ParseFileToolResponse,
     ToolPlaceholderError,
 )
 from code_explorer_mcp.presentation import (
+    get_fetch_symbol_payload,
+    get_parse_file_payload,
+    get_project_structure_payload,
     present_fetch_symbol,
     present_parse_file,
     present_project_structure,
@@ -14,7 +20,7 @@ from code_explorer_mcp.presentation import (
 
 
 def test_present_project_structure_success() -> None:
-    response = GetProjectStructureResponse(
+    response = GetProjectStructureToolResponse(
         subfolder=None,
         pattern="*.py,*.ts",
         structure="src/\n  pkg/\n    component.ts\n    module.py\n  app.py",
@@ -34,9 +40,9 @@ def test_present_project_structure_success() -> None:
         },
     )
 
-    assert present_project_structure(response) == {
-        "structure": "src/\n  pkg/\n    component.ts\n    module.py\n  app.py",
-        "languages": {
+    assert present_project_structure(response) == GetProjectStructureMCPResponse(
+        structure="src/\n  pkg/\n    component.ts\n    module.py\n  app.py",
+        languages={
             "python": ["imports", "globals", "classes", "functions"],
             "typescript": [
                 "imports",
@@ -49,11 +55,11 @@ def test_present_project_structure_success() -> None:
                 "re_exports",
             ],
         },
-    }
+    )
 
 
 def test_present_project_structure_trims_to_requested_subfolder() -> None:
-    response = GetProjectStructureResponse(
+    response = GetProjectStructureToolResponse(
         subfolder="src/pkg",
         structure="src/\n  pkg/\n    component.ts\n    module.py\n    view.tsx",
         available_symbol_types_by_language={
@@ -71,9 +77,9 @@ def test_present_project_structure_trims_to_requested_subfolder() -> None:
         },
     )
 
-    assert present_project_structure(response) == {
-        "structure": "component.ts\nmodule.py\nview.tsx",
-        "languages": {
+    assert present_project_structure(response) == GetProjectStructureMCPResponse(
+        structure="component.ts\nmodule.py\nview.tsx",
+        languages={
             "python": ["imports", "globals", "classes", "functions"],
             "typescript": [
                 "imports",
@@ -86,21 +92,43 @@ def test_present_project_structure_trims_to_requested_subfolder() -> None:
                 "re_exports",
             ],
         },
-    }
+    )
 
 
 def test_present_project_structure_error_passthrough() -> None:
-    response = GetProjectStructureResponse(
+    response = GetProjectStructureToolResponse(
         error=ToolPlaceholderError(code="invalid_path", message="bad path"),
     )
 
-    assert present_project_structure(response) == {
+    assert present_project_structure(response) == GetProjectStructureMCPResponse(
+        error=ToolPlaceholderError(code="invalid_path", message="bad path"),
+    )
+
+
+def test_get_project_structure_payload() -> None:
+    response = GetProjectStructureMCPResponse(
+        structure="src/\n  app.py",
+        languages={"python": ["imports", "globals", "classes", "functions"]},
+    )
+
+    assert get_project_structure_payload(response) == {
+        "structure": "src/\n  app.py",
+        "languages": {"python": ["imports", "globals", "classes", "functions"]},
+    }
+
+
+def test_get_project_structure_payload_error() -> None:
+    response = GetProjectStructureMCPResponse(
+        error=ToolPlaceholderError(code="invalid_path", message="bad path"),
+    )
+
+    assert get_project_structure_payload(response) == {
         "error": {"code": "invalid_path", "message": "bad path"}
     }
 
 
 def test_present_parse_file_python_sections() -> None:
-    response = ParseFileResponse(
+    response = ParseFileToolResponse(
         filename="tests/fixtures/python_sample.py",
         language="python",
         available_symbol_types=("imports", "globals", "classes", "functions"),
@@ -130,20 +158,22 @@ def test_present_parse_file_python_sections() -> None:
         },
     )
 
-    assert present_parse_file(response) == {
-        "imports": [
-            "import os",
-            "from typing import Any as TypingAny",
-            "from .helpers import helper as local_helper",
-        ],
-        "globals": ["MY_GLOBAL", "OTHER_GLOBAL"],
-        "classes": ["MyClass", "MyClass.InnerClass"],
-        "functions": ["top_level_function"],
-    }
+    assert present_parse_file(response) == ParseFileMCPResponse(
+        sections={
+            "imports": [
+                "import os",
+                "from typing import Any as TypingAny",
+                "from .helpers import helper as local_helper",
+            ],
+            "globals": ["MY_GLOBAL", "OTHER_GLOBAL"],
+            "classes": ["MyClass", "MyClass.InnerClass"],
+            "functions": ["top_level_function"],
+        }
+    )
 
 
 def test_present_parse_file_typescript_sections() -> None:
-    response = ParseFileResponse(
+    response = ParseFileToolResponse(
         filename="tests/fixtures/typescript_sample.ts",
         language="typescript",
         available_symbol_types=(
@@ -207,50 +237,72 @@ def test_present_parse_file_typescript_sections() -> None:
         },
     )
 
-    assert present_parse_file(response) == {
-        "imports": [
-            'import Thing, { Helper } from "./types"',
-            'import * as Utils from "./utils"',
-        ],
-        "globals": ["TOP_LEVEL_CONST", "arrowFunction", "mutableValue"],
-        "classes": ["MyClass", "MyClass.InnerClass"],
-        "functions": ["namedFunction", "arrowFunction"],
-        "interfaces": ["MyInterface"],
-        "type_aliases": ["MyType"],
-        "enums": ["MyEnum"],
-        "re_exports": [
-            'export { SharedThing } from "./shared"',
-            'export * from "./everything"',
-        ],
-    }
+    assert present_parse_file(response) == ParseFileMCPResponse(
+        sections={
+            "imports": [
+                'import Thing, { Helper } from "./types"',
+                'import * as Utils from "./utils"',
+            ],
+            "globals": ["TOP_LEVEL_CONST", "arrowFunction", "mutableValue"],
+            "classes": ["MyClass", "MyClass.InnerClass"],
+            "functions": ["namedFunction", "arrowFunction"],
+            "interfaces": ["MyInterface"],
+            "type_aliases": ["MyType"],
+            "enums": ["MyEnum"],
+            "re_exports": [
+                'export { SharedThing } from "./shared"',
+                'export * from "./everything"',
+            ],
+        }
+    )
 
 
 def test_present_parse_file_omits_empty_sections() -> None:
-    response = ParseFileResponse(
+    response = ParseFileToolResponse(
         filename="sample.ts",
         language="typescript",
         available_symbol_types=("functions", "interfaces"),
         sections={"functions": [], "interfaces": [{"name": "MyInterface"}]},
     )
 
-    assert present_parse_file(response) == {"interfaces": ["MyInterface"]}
+    assert present_parse_file(response) == ParseFileMCPResponse(
+        sections={"interfaces": ["MyInterface"]}
+    )
 
 
 def test_present_parse_file_error_passthrough() -> None:
-    response = ParseFileResponse(
+    response = ParseFileToolResponse(
         filename="sample.py",
         language="unknown",
         available_symbol_types=(),
         error=ToolPlaceholderError(code="unsupported_request", message="bad request"),
     )
 
-    assert present_parse_file(response) == {
+    assert present_parse_file(response) == ParseFileMCPResponse(
+        error=ToolPlaceholderError(code="unsupported_request", message="bad request"),
+    )
+
+
+def test_get_parse_file_payload() -> None:
+    response = ParseFileMCPResponse(
+        sections={"functions": ["top_level_function"]},
+    )
+
+    assert get_parse_file_payload(response) == {"functions": ["top_level_function"]}
+
+
+def test_get_parse_file_payload_error() -> None:
+    response = ParseFileMCPResponse(
+        error=ToolPlaceholderError(code="unsupported_request", message="bad request"),
+    )
+
+    assert get_parse_file_payload(response) == {
         "error": {"code": "unsupported_request", "message": "bad request"}
     }
 
 
 def test_present_fetch_symbol_success_with_symbol_type() -> None:
-    response = FetchSymbolResponse(
+    response = FetchSymbolToolResponse(
         filename="tests/fixtures/typescript_sample.ts",
         language="typescript",
         symbol="MyInterface",
@@ -258,14 +310,14 @@ def test_present_fetch_symbol_success_with_symbol_type() -> None:
         code="export interface MyInterface {\n  id: string;\n}",
     )
 
-    assert present_fetch_symbol(response) == {
-        "code": "export interface MyInterface {\n  id: string;\n}",
-        "symbol_type": "interfaces",
-    }
+    assert present_fetch_symbol(response) == FetchSymbolMCPResponse(
+        code="export interface MyInterface {\n  id: string;\n}",
+        symbol_type="interfaces",
+    )
 
 
 def test_present_fetch_symbol_success_without_symbol_type() -> None:
-    response = FetchSymbolResponse(
+    response = FetchSymbolToolResponse(
         filename="tests/fixtures/typescript_sample.ts",
         language="typescript",
         symbol="Missing",
@@ -273,11 +325,11 @@ def test_present_fetch_symbol_success_without_symbol_type() -> None:
         code="some code",
     )
 
-    assert present_fetch_symbol(response) == {"code": "some code"}
+    assert present_fetch_symbol(response) == FetchSymbolMCPResponse(code="some code")
 
 
 def test_present_fetch_symbol_error_passthrough() -> None:
-    response = FetchSymbolResponse(
+    response = FetchSymbolToolResponse(
         filename="sample.ts",
         language="typescript",
         symbol="Missing",
@@ -286,6 +338,28 @@ def test_present_fetch_symbol_error_passthrough() -> None:
         error=ToolPlaceholderError(code="symbol_not_found", message="missing"),
     )
 
-    assert present_fetch_symbol(response) == {
+    assert present_fetch_symbol(response) == FetchSymbolMCPResponse(
+        error=ToolPlaceholderError(code="symbol_not_found", message="missing"),
+    )
+
+
+def test_get_fetch_symbol_payload() -> None:
+    response = FetchSymbolMCPResponse(
+        code="export const x = 1;",
+        symbol_type="globals",
+    )
+
+    assert get_fetch_symbol_payload(response) == {
+        "code": "export const x = 1;",
+        "symbol_type": "globals",
+    }
+
+
+def test_get_fetch_symbol_payload_error() -> None:
+    response = FetchSymbolMCPResponse(
+        error=ToolPlaceholderError(code="symbol_not_found", message="missing"),
+    )
+
+    assert get_fetch_symbol_payload(response) == {
         "error": {"code": "symbol_not_found", "message": "missing"}
     }

@@ -3,52 +3,84 @@ from __future__ import annotations
 from typing import Any, Mapping
 
 from code_explorer_mcp.models import (
-    FetchSymbolResponse,
-    GetProjectStructureResponse,
-    ParseFileResponse,
+    FetchSymbolMCPResponse,
+    FetchSymbolToolResponse,
+    GetProjectStructureMCPResponse,
+    GetProjectStructureToolResponse,
+    ParseFileMCPResponse,
+    ParseFileToolResponse,
     ToolPlaceholderError,
 )
 
 
-def present_project_structure(response: GetProjectStructureResponse) -> dict[str, Any]:
+def present_project_structure(
+    response: GetProjectStructureToolResponse,
+) -> GetProjectStructureMCPResponse:
     if response.error is not None:
-        return _present_error(response.error)
+        return GetProjectStructureMCPResponse(error=response.error)
 
-    return {
-        "structure": _trim_structure_to_subfolder(
+    return GetProjectStructureMCPResponse(
+        structure=_trim_structure_to_subfolder(
             response.structure,
             response.subfolder,
         ),
-        "languages": {
+        languages={
             language: list(symbol_types)
             for language, symbol_types in response.available_symbol_types_by_language.items()
         },
+    )
+
+
+def get_project_structure_payload(
+    response: GetProjectStructureMCPResponse,
+) -> dict[str, object]:
+    if response.error is not None:
+        return _error_payload(response.error)
+    return {
+        "structure": response.structure,
+        "languages": response.languages,
     }
 
 
-def present_parse_file(response: ParseFileResponse) -> dict[str, Any]:
+def present_parse_file(response: ParseFileToolResponse) -> ParseFileMCPResponse:
     if response.error is not None:
-        return _present_error(response.error)
+        return ParseFileMCPResponse(error=response.error)
 
-    payload: dict[str, Any] = {}
+    sections: dict[str, list[str]] = {}
     for section_name, section_value in response.sections.items():
         presented_section = _present_section(section_name, section_value)
         if presented_section:
-            payload[section_name] = presented_section
-    return payload
+            sections[section_name] = presented_section
+    return ParseFileMCPResponse(sections=sections)
 
 
-def present_fetch_symbol(response: FetchSymbolResponse) -> dict[str, Any]:
+def get_parse_file_payload(response: ParseFileMCPResponse) -> dict[str, object]:
     if response.error is not None:
-        return _present_error(response.error)
+        return _error_payload(response.error)
+    return dict(response.sections)
 
-    payload: dict[str, Any] = {"code": response.code}
+
+def present_fetch_symbol(response: FetchSymbolToolResponse) -> FetchSymbolMCPResponse:
+    if response.error is not None:
+        return FetchSymbolMCPResponse(error=response.error)
+
+    return FetchSymbolMCPResponse(
+        code=response.code,
+        symbol_type=response.symbol_type,
+    )
+
+
+def get_fetch_symbol_payload(response: FetchSymbolMCPResponse) -> dict[str, object]:
+    if response.error is not None:
+        return _error_payload(response.error)
+
+    payload: dict[str, object] = {"code": response.code}
     if response.symbol_type is not None:
         payload["symbol_type"] = response.symbol_type
     return payload
 
 
-def _present_error(error: ToolPlaceholderError) -> dict[str, Any]:
+def _error_payload(error: ToolPlaceholderError) -> dict[str, object]:
     return {
         "error": {
             "code": error.code,
@@ -86,9 +118,7 @@ def _trim_structure_to_subfolder(structure: str, subfolder: str | None) -> str:
         indent = _line_indent_level(line)
         if indent <= subtree_depth:
             break
-        trimmed_lines.append(
-            f"{'  ' * (indent - base_indent)}{line.lstrip()}"
-        )
+        trimmed_lines.append(f"{'  ' * (indent - base_indent)}{line.lstrip()}")
     return "\n".join(trimmed_lines)
 
 
@@ -166,7 +196,8 @@ def _present_re_export(item: Mapping[str, Any]) -> str:
     module = str(item["module"])
     names = item.get("names")
     if isinstance(names, list) and names:
-        return 'export { ' + ", ".join(str(name) for name in names) + f' }} from "{module}"'
+        rendered_names = ", ".join(str(name) for name in names)
+        return f'export {{ {rendered_names} }} from "{module}"'
     return f'export * from "{module}"'
 
 

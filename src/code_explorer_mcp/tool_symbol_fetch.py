@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from code_explorer_mcp.models import (
     FetchSymbolRequest,
-    FetchSymbolResponse,
+    FetchSymbolToolResponse,
     ToolPlaceholderError,
 )
 from code_explorer_mcp.parser_registry import DEFAULT_PARSER_REGISTRY
@@ -16,7 +16,7 @@ def fetch_symbol(
     request: FetchSymbolRequest,
     *,
     runtime_config: RuntimeConfig,
-) -> FetchSymbolResponse:
+) -> FetchSymbolToolResponse:
     project_root = runtime_config.project_root
 
     try:
@@ -26,7 +26,7 @@ def fetch_symbol(
         source = file_path.read_text(encoding="utf-8")
         match = parser.fetch_symbol(relative_filename, source, request.symbol)
     except ProjectPathError as exc:
-        return FetchSymbolResponse(
+        return FetchSymbolToolResponse(
             filename=request.filename,
             language="unknown",
             symbol=request.symbol,
@@ -38,7 +38,7 @@ def fetch_symbol(
             ),
         )
     except OSError as exc:
-        return FetchSymbolResponse(
+        return FetchSymbolToolResponse(
             filename=request.filename,
             language="unknown",
             symbol=request.symbol,
@@ -50,7 +50,7 @@ def fetch_symbol(
             ),
         )
     except ValueError as exc:
-        return FetchSymbolResponse(
+        return FetchSymbolToolResponse(
             filename=request.filename,
             language="unknown",
             symbol=request.symbol,
@@ -63,7 +63,7 @@ def fetch_symbol(
         )
 
     if match is None:
-        return FetchSymbolResponse(
+        return FetchSymbolToolResponse(
             filename=relative_filename,
             language=parser.language(),
             symbol=request.symbol,
@@ -75,7 +75,7 @@ def fetch_symbol(
             ),
         )
 
-    return FetchSymbolResponse(
+    return FetchSymbolToolResponse(
         filename=match.filename,
         language=match.language,
         symbol=match.symbol,

@@ -17,7 +17,7 @@ class GetProjectStructureRequest:
 
 
 @dataclass(frozen=True, slots=True)
-class GetProjectStructureResponse:
+class GetProjectStructureToolResponse:
     root: str = "."
     subfolder: str | None = None
     pattern: str | None = None
@@ -30,17 +30,30 @@ class GetProjectStructureResponse:
 
 
 @dataclass(frozen=True, slots=True)
+class GetProjectStructureMCPResponse:
+    structure: str = ""
+    languages: dict[str, list[str]] = field(default_factory=dict)
+    error: ToolPlaceholderError | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class ParseFileRequest:
     filename: str
     content: dict[str, bool] | None = None
 
 
 @dataclass(frozen=True, slots=True)
-class ParseFileResponse:
+class ParseFileToolResponse:
     filename: str
     language: str
     available_symbol_types: tuple[str, ...]
     sections: dict[str, Any] = field(default_factory=dict)
+    error: ToolPlaceholderError | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ParseFileMCPResponse:
+    sections: dict[str, list[str]] = field(default_factory=dict)
     error: ToolPlaceholderError | None = None
 
 
@@ -51,10 +64,17 @@ class FetchSymbolRequest:
 
 
 @dataclass(frozen=True, slots=True)
-class FetchSymbolResponse:
+class FetchSymbolToolResponse:
     filename: str
     language: str
     symbol: str
     symbol_type: str | None
     code: str | None
+    error: ToolPlaceholderError | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class FetchSymbolMCPResponse:
+    code: str | None = None
+    symbol_type: str | None = None
     error: ToolPlaceholderError | None = None
