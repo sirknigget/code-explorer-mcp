@@ -3,11 +3,15 @@ from __future__ import annotations
 from typing import Any, Mapping
 
 from code_explorer_mcp.models import (
-    FetchSymbolMCPResponse,
+    ErrorPayload,
+    FetchSymbolPayload,
+    FetchSymbolSuccessPayload,
     FetchSymbolToolResponse,
-    GetProjectStructureMCPResponse,
+    GetProjectStructurePayload,
     GetProjectStructureToolResponse,
-    ParseFileMCPResponse,
+    GetProjectStructureSuccessPayload,
+    ParseFilePayload,
+    ParseFileSectionsPayload,
     ParseFileToolResponse,
     ToolPlaceholderError,
 )
@@ -15,72 +19,46 @@ from code_explorer_mcp.models import (
 
 def present_project_structure(
     response: GetProjectStructureToolResponse,
-) -> GetProjectStructureMCPResponse:
+) -> GetProjectStructurePayload:
     if response.error is not None:
-        return GetProjectStructureMCPResponse(error=response.error)
+        return _error_payload(response.error)
 
-    return GetProjectStructureMCPResponse(
-        structure=_trim_structure_to_subfolder(
+    payload: GetProjectStructureSuccessPayload = {
+        "structure": _trim_structure_to_subfolder(
             response.structure,
             response.subfolder,
         ),
-        languages={
+        "languages": {
             language: list(symbol_types)
             for language, symbol_types in response.available_symbol_types_by_language.items()
         },
-    )
+    }
+    return payload
 
 
-def get_project_structure_payload(
-    response: GetProjectStructureMCPResponse,
-) -> dict[str, object]:
+def present_parse_file(response: ParseFileToolResponse) -> ParseFilePayload:
     if response.error is not None:
         return _error_payload(response.error)
-    return {
-        "structure": response.structure,
-        "languages": response.languages,
-    }
 
-
-def present_parse_file(response: ParseFileToolResponse) -> ParseFileMCPResponse:
-    if response.error is not None:
-        return ParseFileMCPResponse(error=response.error)
-
-    sections: dict[str, list[str]] = {}
+    sections: ParseFileSectionsPayload = {}
     for section_name, section_value in response.sections.items():
         presented_section = _present_section(section_name, section_value)
         if presented_section:
             sections[section_name] = presented_section
-    return ParseFileMCPResponse(sections=sections)
+    return sections
 
 
-def get_parse_file_payload(response: ParseFileMCPResponse) -> dict[str, object]:
-    if response.error is not None:
-        return _error_payload(response.error)
-    return dict(response.sections)
-
-
-def present_fetch_symbol(response: FetchSymbolToolResponse) -> FetchSymbolMCPResponse:
-    if response.error is not None:
-        return FetchSymbolMCPResponse(error=response.error)
-
-    return FetchSymbolMCPResponse(
-        code=response.code,
-        symbol_type=response.symbol_type,
-    )
-
-
-def get_fetch_symbol_payload(response: FetchSymbolMCPResponse) -> dict[str, object]:
+def present_fetch_symbol(response: FetchSymbolToolResponse) -> FetchSymbolPayload:
     if response.error is not None:
         return _error_payload(response.error)
 
-    payload: dict[str, object] = {"code": response.code}
+    payload: FetchSymbolSuccessPayload = {"code": response.code}
     if response.symbol_type is not None:
         payload["symbol_type"] = response.symbol_type
     return payload
 
 
-def _error_payload(error: ToolPlaceholderError) -> dict[str, object]:
+def _error_payload(error: ToolPlaceholderError) -> ErrorPayload:
     return {
         "error": {
             "code": error.code,

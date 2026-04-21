@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, cast
 
 from fastmcp import FastMCP
 
@@ -10,9 +10,6 @@ from code_explorer_mcp.models import (
     ParseFileRequest,
 )
 from code_explorer_mcp.presentation import (
-    get_fetch_symbol_payload,
-    get_parse_file_payload,
-    get_project_structure_payload,
     present_fetch_symbol,
     present_parse_file,
     present_project_structure,
@@ -21,6 +18,10 @@ from code_explorer_mcp.runtime_config import RuntimeConfig
 from code_explorer_mcp.tool_file_parse import parse_file
 from code_explorer_mcp.tool_project_structure import get_project_structure
 from code_explorer_mcp.tool_symbol_fetch import fetch_symbol
+
+
+def _present_for_fastmcp(payload: object) -> dict[str, object]:
+    return cast(dict[str, object], payload)
 
 
 def create_mcp_server(*, runtime_config: RuntimeConfig) -> FastMCP:
@@ -52,8 +53,7 @@ def create_mcp_server(*, runtime_config: RuntimeConfig) -> FastMCP:
     ) -> dict[str, object]:
         request = GetProjectStructureRequest(subfolder=subfolder, pattern=pattern)
         response = get_project_structure(request, runtime_config=runtime_config)
-        mcp_response = present_project_structure(response)
-        return get_project_structure_payload(mcp_response)
+        return _present_for_fastmcp(present_project_structure(response))
 
     @mcp.tool(
         name="parse_file",
@@ -81,8 +81,7 @@ def create_mcp_server(*, runtime_config: RuntimeConfig) -> FastMCP:
     ) -> dict[str, object]:
         request = ParseFileRequest(filename=filename, content=content)
         response = parse_file(request, runtime_config=runtime_config)
-        mcp_response = present_parse_file(response)
-        return get_parse_file_payload(mcp_response)
+        return _present_for_fastmcp(present_parse_file(response))
 
     @mcp.tool(
         name="fetch_symbol",
@@ -110,7 +109,6 @@ def create_mcp_server(*, runtime_config: RuntimeConfig) -> FastMCP:
     ) -> dict[str, object]:
         request = FetchSymbolRequest(filename=filename, symbol=symbol)
         response = fetch_symbol(request, runtime_config=runtime_config)
-        mcp_response = present_fetch_symbol(response)
-        return get_fetch_symbol_payload(mcp_response)
+        return _present_for_fastmcp(present_fetch_symbol(response))
 
     return mcp
