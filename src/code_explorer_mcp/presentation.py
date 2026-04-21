@@ -3,27 +3,24 @@ from __future__ import annotations
 from typing import Any, Mapping
 
 from code_explorer_mcp.models import (
-    ErrorPayload,
-    FetchSymbolPayload,
-    FetchSymbolSuccessPayload,
+    FetchSymbolMCPResponse,
     FetchSymbolToolResponse,
-    GetProjectStructurePayload,
+    GetProjectStructureMCPResponse,
     GetProjectStructureToolResponse,
-    GetProjectStructureSuccessPayload,
-    ParseFilePayload,
-    ParseFileSectionsPayload,
+    ParseFileMCPResponse,
     ParseFileToolResponse,
+    ToolErrorMCPResponse,
     ToolPlaceholderError,
 )
 
 
 def present_project_structure(
     response: GetProjectStructureToolResponse,
-) -> GetProjectStructurePayload:
+) -> GetProjectStructureMCPResponse:
     if response.error is not None:
-        return _error_payload(response.error)
+        return {"error": _tool_error_response(response.error)}
 
-    payload: GetProjectStructureSuccessPayload = {
+    return {
         "structure": _trim_structure_to_subfolder(
             response.structure,
             response.subfolder,
@@ -33,37 +30,34 @@ def present_project_structure(
             for language, symbol_types in response.available_symbol_types_by_language.items()
         },
     }
-    return payload
 
 
-def present_parse_file(response: ParseFileToolResponse) -> ParseFilePayload:
+def present_parse_file(response: ParseFileToolResponse) -> ParseFileMCPResponse:
     if response.error is not None:
-        return _error_payload(response.error)
+        return {"error": _tool_error_response(response.error)}
 
-    sections: ParseFileSectionsPayload = {}
+    sections: dict[str, list[str]] = {}
     for section_name, section_value in response.sections.items():
         presented_section = _present_section(section_name, section_value)
         if presented_section:
             sections[section_name] = presented_section
-    return sections
+    return {"sections": sections}
 
 
-def present_fetch_symbol(response: FetchSymbolToolResponse) -> FetchSymbolPayload:
+def present_fetch_symbol(response: FetchSymbolToolResponse) -> FetchSymbolMCPResponse:
     if response.error is not None:
-        return _error_payload(response.error)
+        return {"error": _tool_error_response(response.error)}
 
-    payload: FetchSymbolSuccessPayload = {"code": response.code}
+    payload: FetchSymbolMCPResponse = {"code": response.code}
     if response.symbol_type is not None:
         payload["symbol_type"] = response.symbol_type
     return payload
 
 
-def _error_payload(error: ToolPlaceholderError) -> ErrorPayload:
+def _tool_error_response(error: ToolPlaceholderError) -> ToolErrorMCPResponse:
     return {
-        "error": {
-            "code": error.code,
-            "message": error.message,
-        }
+        "code": error.code,
+        "message": error.message,
     }
 
 

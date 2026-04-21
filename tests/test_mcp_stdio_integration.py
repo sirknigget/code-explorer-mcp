@@ -143,24 +143,28 @@ async def test_stdio_client_lists_tools_and_calls_each_tool(
         },
     }
     assert python_parse_result.data == {
-        "classes": ["MyClass", "MyClass.InnerClass"],
-        "functions": ["top_level_function"],
+        "sections": {
+            "classes": ["MyClass", "MyClass.InnerClass"],
+            "functions": ["top_level_function"],
+        }
     }
     assert typescript_parse_result.data == {
-        "imports": [
-            'import Thing, { Helper } from "./types"',
-            'import * as Utils from "./utils"',
-        ],
-        "globals": ["TOP_LEVEL_CONST", "arrowFunction", "mutableValue"],
-        "classes": ["MyClass", "MyClass.InnerClass"],
-        "functions": ["namedFunction", "arrowFunction"],
-        "interfaces": ["MyInterface"],
-        "type_aliases": ["MyType"],
-        "enums": ["MyEnum"],
-        "re_exports": [
-            'export { SharedThing } from "./shared"',
-            'export * from "./everything"',
-        ],
+        "sections": {
+            "imports": [
+                'import Thing, { Helper } from "./types"',
+                'import * as Utils from "./utils"',
+            ],
+            "globals": ["TOP_LEVEL_CONST", "arrowFunction", "mutableValue"],
+            "classes": ["MyClass", "MyClass.InnerClass"],
+            "functions": ["namedFunction", "arrowFunction"],
+            "interfaces": ["MyInterface"],
+            "type_aliases": ["MyType"],
+            "enums": ["MyEnum"],
+            "re_exports": [
+                'export { SharedThing } from "./shared"',
+                'export * from "./everything"',
+            ],
+        }
     }
     assert typescript_fetch_result.data == {
         "symbol_type": "interfaces",

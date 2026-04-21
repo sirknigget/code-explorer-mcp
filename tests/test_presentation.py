@@ -131,14 +131,16 @@ def test_present_parse_file_python_sections() -> None:
     )
 
     assert present_parse_file(response) == {
-        "imports": [
-            "import os",
-            "from typing import Any as TypingAny",
-            "from .helpers import helper as local_helper",
-        ],
-        "globals": ["MY_GLOBAL", "OTHER_GLOBAL"],
-        "classes": ["MyClass", "MyClass.InnerClass"],
-        "functions": ["top_level_function"],
+        "sections": {
+            "imports": [
+                "import os",
+                "from typing import Any as TypingAny",
+                "from .helpers import helper as local_helper",
+            ],
+            "globals": ["MY_GLOBAL", "OTHER_GLOBAL"],
+            "classes": ["MyClass", "MyClass.InnerClass"],
+            "functions": ["top_level_function"],
+        }
     }
 
 
@@ -208,20 +210,22 @@ def test_present_parse_file_typescript_sections() -> None:
     )
 
     assert present_parse_file(response) == {
-        "imports": [
-            'import Thing, { Helper } from "./types"',
-            'import * as Utils from "./utils"',
-        ],
-        "globals": ["TOP_LEVEL_CONST", "arrowFunction", "mutableValue"],
-        "classes": ["MyClass", "MyClass.InnerClass"],
-        "functions": ["namedFunction", "arrowFunction"],
-        "interfaces": ["MyInterface"],
-        "type_aliases": ["MyType"],
-        "enums": ["MyEnum"],
-        "re_exports": [
-            'export { SharedThing } from "./shared"',
-            'export * from "./everything"',
-        ],
+        "sections": {
+            "imports": [
+                'import Thing, { Helper } from "./types"',
+                'import * as Utils from "./utils"',
+            ],
+            "globals": ["TOP_LEVEL_CONST", "arrowFunction", "mutableValue"],
+            "classes": ["MyClass", "MyClass.InnerClass"],
+            "functions": ["namedFunction", "arrowFunction"],
+            "interfaces": ["MyInterface"],
+            "type_aliases": ["MyType"],
+            "enums": ["MyEnum"],
+            "re_exports": [
+                'export { SharedThing } from "./shared"',
+                'export * from "./everything"',
+            ],
+        }
     }
 
 
@@ -233,7 +237,7 @@ def test_present_parse_file_omits_empty_sections() -> None:
         sections={"functions": [], "interfaces": [{"name": "MyInterface"}]},
     )
 
-    assert present_parse_file(response) == {"interfaces": ["MyInterface"]}
+    assert present_parse_file(response) == {"sections": {"interfaces": ["MyInterface"]}}
 
 
 def test_present_parse_file_error_passthrough() -> None:

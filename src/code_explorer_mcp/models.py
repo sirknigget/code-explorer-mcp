@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, NotRequired, TypedDict, TypeAlias
+from typing import Any, NotRequired, TypedDict
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,21 +29,15 @@ class GetProjectStructureToolResponse:
     error: ToolPlaceholderError | None = None
 
 
-class ToolErrorPayload(TypedDict):
+class ToolErrorMCPResponse(TypedDict):
     code: str
     message: str
 
 
-class ErrorPayload(TypedDict):
-    error: ToolErrorPayload
-
-
-class GetProjectStructureSuccessPayload(TypedDict):
-    structure: str
-    languages: dict[str, list[str]]
-
-
-GetProjectStructurePayload: TypeAlias = GetProjectStructureSuccessPayload | ErrorPayload
+class GetProjectStructureMCPResponse(TypedDict):
+    structure: NotRequired[str]
+    languages: NotRequired[dict[str, list[str]]]
+    error: NotRequired[ToolErrorMCPResponse]
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,8 +55,9 @@ class ParseFileToolResponse:
     error: ToolPlaceholderError | None = None
 
 
-ParseFileSectionsPayload: TypeAlias = dict[str, list[str]]
-ParseFilePayload: TypeAlias = ParseFileSectionsPayload | ErrorPayload
+class ParseFileMCPResponse(TypedDict):
+    sections: NotRequired[dict[str, list[str]]]
+    error: NotRequired[ToolErrorMCPResponse]
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,9 +76,7 @@ class FetchSymbolToolResponse:
     error: ToolPlaceholderError | None = None
 
 
-class FetchSymbolSuccessPayload(TypedDict):
-    code: str | None
+class FetchSymbolMCPResponse(TypedDict):
+    code: NotRequired[str | None]
     symbol_type: NotRequired[str]
-
-
-FetchSymbolPayload: TypeAlias = FetchSymbolSuccessPayload | ErrorPayload
+    error: NotRequired[ToolErrorMCPResponse]
