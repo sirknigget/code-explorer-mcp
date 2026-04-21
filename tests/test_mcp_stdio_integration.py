@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import shutil
-from dataclasses import asdict
 from pathlib import Path
 
 import pytest
@@ -88,25 +87,35 @@ async def test_stdio_client_lists_tools_and_calls_each_tool(
                 "pattern": "*.py,*.ts",
             },
         )
-        parse_file_result = await client.call_tool(
+        python_parse_result = await client.call_tool(
             "parse_file",
             {
                 "filename": "tests/fixtures/python_sample.py",
                 "content": {"functions": True, "classes": True},
             },
         )
-        fetch_symbol_result = await client.call_tool(
+        typescript_parse_result = await client.call_tool(
+            "parse_file",
+            {
+                "filename": "tests/fixtures/typescript_sample.ts",
+            },
+        )
+        typescript_fetch_result = await client.call_tool(
             "fetch_symbol",
             {
                 "filename": "tests/fixtures/typescript_sample.ts",
                 "symbol": "MyInterface",
             },
         )
+        python_fetch_result = await client.call_tool(
+            "fetch_symbol",
+            {
+                "filename": "tests/fixtures/python_sample.py",
+                "symbol": "MyClass.my_async_method",
+            },
+        )
 
-    assert asdict(project_structure.data) == {
-        "root": ".",
-        "subfolder": None,
-        "pattern": "*.py,*.ts",
+    assert project_structure.data == {
         "structure": (
             "src/\n"
             "  pkg/\n"
@@ -119,8 +128,7 @@ async def test_stdio_client_lists_tools_and_calls_each_tool(
             "    typescript_sample.ts\n"
             "  test_app.py"
         ),
-        "languages_present": ["python", "typescript"],
-        "available_symbol_types_by_language": {
+        "languages": {
             "python": ["imports", "globals", "classes", "functions"],
             "typescript": [
                 "imports",
@@ -133,43 +141,36 @@ async def test_stdio_client_lists_tools_and_calls_each_tool(
                 "re_exports",
             ],
         },
-        "error": None,
     }
-    assert asdict(parse_file_result.data) == {
-        "filename": "tests/fixtures/python_sample.py",
-        "language": "python",
-        "available_symbol_types": ["imports", "globals", "classes", "functions"],
+    assert python_parse_result.data == {
         "sections": {
-            "classes": [
-                {
-                    "name": "MyClass",
-                    "members": [
-                        {"name": "count"},
-                        {"name": "label"},
-                    ],
-                    "methods": [
-                        {"name": "my_method"},
-                        {"name": "my_async_method"},
-                    ],
-                    "inner_classes": [
-                        {
-                            "name": "InnerClass",
-                            "members": [{"name": "inner_value"}],
-                            "methods": [],
-                            "inner_classes": [],
-                        }
-                    ],
-                }
-            ],
-            "functions": [{"name": "top_level_function"}],
-        },
-        "error": None,
+            "classes": ["MyClass", "MyClass.InnerClass"],
+            "functions": ["top_level_function"],
+        }
     }
-    assert asdict(fetch_symbol_result.data) == {
-        "filename": "tests/fixtures/typescript_sample.ts",
-        "language": "typescript",
-        "symbol": "MyInterface",
+    assert typescript_parse_result.data == {
+        "sections": {
+            "imports": [
+                'import Thing, { Helper } from "./types"',
+                'import * as Utils from "./utils"',
+            ],
+            "globals": ["TOP_LEVEL_CONST", "arrowFunction", "mutableValue"],
+            "classes": ["MyClass", "MyClass.InnerClass"],
+            "functions": ["namedFunction", "arrowFunction"],
+            "interfaces": ["MyInterface"],
+            "type_aliases": ["MyType"],
+            "enums": ["MyEnum"],
+            "re_exports": [
+                'export { SharedThing } from "./shared"',
+                'export * from "./everything"',
+            ],
+        }
+    }
+    assert typescript_fetch_result.data == {
         "symbol_type": "interfaces",
         "code": "export interface MyInterface {\n  id: string;\n}",
-        "error": None,
+    }
+    assert python_fetch_result.data == {
+        "symbol_type": "classes",
+        "code": "async def my_async_method(self) -> str:\n        return self.label",
     }

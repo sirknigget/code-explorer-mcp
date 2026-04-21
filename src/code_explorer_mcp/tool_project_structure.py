@@ -5,7 +5,7 @@ from pathlib import Path
 
 from code_explorer_mcp.models import (
     GetProjectStructureRequest,
-    GetProjectStructureResponse,
+    GetProjectStructureToolResponse,
 )
 from code_explorer_mcp.parser_registry import DEFAULT_PARSER_REGISTRY
 from code_explorer_mcp.runtime_config import RuntimeConfig
@@ -21,7 +21,7 @@ def get_project_structure(
     request: GetProjectStructureRequest,
     *,
     runtime_config: RuntimeConfig,
-) -> GetProjectStructureResponse:
+) -> GetProjectStructureToolResponse:
     project_root = runtime_config.project_root
     normalized_subfolder = (
         None
@@ -45,7 +45,7 @@ def get_project_structure(
     structure = render_tree(build_tree(matched_paths)) if matched_paths else ""
     capabilities = DEFAULT_PARSER_REGISTRY.capabilities_for_paths(matched_paths)
 
-    return GetProjectStructureResponse(
+    return GetProjectStructureToolResponse(
         root=".",
         subfolder=normalized_subfolder,
         pattern=request.pattern,

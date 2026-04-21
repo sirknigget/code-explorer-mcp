@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, NotRequired, TypedDict
 
 
 @dataclass(frozen=True, slots=True)
@@ -17,7 +17,7 @@ class GetProjectStructureRequest:
 
 
 @dataclass(frozen=True, slots=True)
-class GetProjectStructureResponse:
+class GetProjectStructureToolResponse:
     root: str = "."
     subfolder: str | None = None
     pattern: str | None = None
@@ -29,6 +29,17 @@ class GetProjectStructureResponse:
     error: ToolPlaceholderError | None = None
 
 
+class ToolErrorMCPResponse(TypedDict):
+    code: str
+    message: str
+
+
+class GetProjectStructureMCPResponse(TypedDict):
+    structure: NotRequired[str]
+    languages: NotRequired[dict[str, list[str]]]
+    error: NotRequired[ToolErrorMCPResponse]
+
+
 @dataclass(frozen=True, slots=True)
 class ParseFileRequest:
     filename: str
@@ -36,12 +47,17 @@ class ParseFileRequest:
 
 
 @dataclass(frozen=True, slots=True)
-class ParseFileResponse:
+class ParseFileToolResponse:
     filename: str
     language: str
     available_symbol_types: tuple[str, ...]
     sections: dict[str, Any] = field(default_factory=dict)
     error: ToolPlaceholderError | None = None
+
+
+class ParseFileMCPResponse(TypedDict):
+    sections: NotRequired[dict[str, list[str]]]
+    error: NotRequired[ToolErrorMCPResponse]
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,10 +67,16 @@ class FetchSymbolRequest:
 
 
 @dataclass(frozen=True, slots=True)
-class FetchSymbolResponse:
+class FetchSymbolToolResponse:
     filename: str
     language: str
     symbol: str
     symbol_type: str | None
     code: str | None
     error: ToolPlaceholderError | None = None
+
+
+class FetchSymbolMCPResponse(TypedDict):
+    code: NotRequired[str | None]
+    symbol_type: NotRequired[str]
+    error: NotRequired[ToolErrorMCPResponse]
