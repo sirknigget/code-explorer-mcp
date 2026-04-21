@@ -39,14 +39,19 @@ Python parsing works after install. TypeScript parsing also requires Node.js and
 
 ## Example MCP client config
 
-Example stdio configuration:
+Claude Code:
+
+```bash
+claude mcp add --transport stdio code-explorer -- code-explorer-mcp
+```
+
+Generic stdio configuration:
 
 ```json
 {
   "mcpServers": {
     "code-explorer": {
-      "command": "code-explorer-mcp",
-      "cwd": "/absolute/path/to/the/repository-you-want-to-inspect"
+      "command": "code-explorer-mcp"
     }
   }
 }
