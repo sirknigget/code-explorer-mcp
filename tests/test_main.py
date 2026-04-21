@@ -67,7 +67,7 @@ def test_main_accepts_explicit_empty_argv(
     assert stub_server.did_run is True
 
 
-def test_main_uses_path_argument_for_project_root_and_working_directory(
+def test_main_uses_path_argument_for_project_root_without_changing_cwd(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -89,7 +89,7 @@ def test_main_uses_path_argument_for_project_root_and_working_directory(
     main_module.main(["--path", str(project_root)])
 
     assert create_server_calls == [project_root.resolve()]
-    assert Path.cwd() == project_root.resolve()
+    assert Path.cwd() == start_directory.resolve()
     assert stub_server.did_run is True
 
 

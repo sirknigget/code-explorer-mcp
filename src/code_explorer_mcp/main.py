@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import os
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -22,7 +21,6 @@ def main(argv: Sequence[str] | None = None) -> None:
     if not project_root.is_dir():
         parser.error(f"--path must point to an existing directory: {project_root}")
 
-    os.chdir(project_root)
     runtime_config = RuntimeConfig.from_project_root(project_root)
     mcp = create_mcp_server(runtime_config=runtime_config)
     mcp.run()
