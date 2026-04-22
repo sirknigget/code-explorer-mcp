@@ -6,9 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - Initial setup:
   - `uv sync --extra test`
-  - `uv run node-setup`
-- Run the MCP server from the repository you want to inspect:
+  - `uv run code-explorer-node-setup`
+- Run the MCP server against the current directory:
   - `uv run code-explorer-mcp`
+- Run the MCP server against another repository:
+  - `uv run code-explorer-mcp --path /path/to/repo`
 - Run lint:
   - `uv run ruff check .`
 - Run type checking:
@@ -38,9 +40,16 @@ This repository is a local FastMCP server that exposes deterministic code-explor
 
 ### Core tool boundaries
 
-- `get_project_structure` walks the current working directory, applies `.gitignore` plus a built-in ignored-directory list, then renders a deterministic tree and reports which parser capabilities are available for the matched files.
+- `get_project_structure` walks the requested subtree under the configured project root, applies `.gitignore` plus a built-in ignored-directory list, supports comma-separated glob filters, then renders a deterministic tree and reports parser capabilities for the matched files.
 - `parse_file` resolves a project-relative path safely, selects a parser by filename extension, parses the file, and returns only the requested symbol sections when `content` is provided.
 - `fetch_symbol` uses the same parser registry and safe path resolution, then slices the exact source span for a named symbol.
+
+### MCP response shaping
+
+- FastMCP registration happens in `src/code_explorer_mcp/server.py`; keep tool descriptions aligned with the README because they are user-visible in clients.
+- MCP responses are intentionally presentation-layer summaries, not raw parser dumps. `src/code_explorer_mcp/presentation.py` flattens parsed data into lists of names/import statements and trims project-structure output to the requested subtree.
+- `parse_file` only returns sections requested through the `content` selector, and unknown section names should fail as `unsupported_request` instead of being ignored.
+- `fetch_symbol` should only return parser-known symbols; consumers are expected to call `parse_file` first and then request an exact symbol name.
 
 ### Parser design
 
@@ -54,6 +63,7 @@ This repository is a local FastMCP server that exposes deterministic code-explor
 ### Path and tree invariants
 
 - Path validation is centralized in `src/code_explorer_mcp/utils/paths.py`; tool code should use these helpers instead of custom path joining so requests cannot escape the project root.
+- The server inspects `Path.cwd()` by default, unless `--path` is provided at startup. That runtime root choice is load-bearing for both tests and docs.
 - Tree rendering is centralized in `src/code_explorer_mcp/utils/tree.py`; structure output is expected to stay deterministic and sorted.
 
 ### Tests
